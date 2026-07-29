@@ -399,6 +399,40 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .cal-cell.blank { background: transparent; border: none; }
 .cal-cell.today { background: var(--gold); border-color: var(--gold-deep); font-weight: 700; }
 .cal-dot { width: 5px; height: 5px; background: var(--danger); margin-top: 2px; }
+.cal-cell.sel { outline: 3px solid var(--gold-deep); outline-offset: -1px; }
+.cal-cell { cursor: pointer; }
+
+/* поля времени в задачах */
+.time-row { align-items: center; gap: 6px; }
+.time-in { flex: 1; min-width: 0; }
+.field-lbl { font-size: 18px; flex-shrink: 0; }
+.dash { font-weight: 700; color: var(--ink-soft); flex-shrink: 0; }
+
+/* повтор по дням */
+.repeat-btn.active { background: var(--gold); border-color: var(--gold-deep); box-shadow: 0 4px 0 var(--gold-deep); }
+.chip-preset {
+  padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--ink);
+  background: var(--parchment); border: 3px solid var(--wood-dark); box-shadow: 0 3px 0 var(--wood); white-space: nowrap;
+}
+.day-chips { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.day-chip {
+  width: 40px; height: 38px; font-size: 14px; font-weight: 700; color: var(--ink-soft);
+  background: #fff; border: 3px solid var(--wood-dark); box-shadow: 0 3px 0 var(--wood);
+}
+.day-chip.on { background: var(--xp); color: #fff; border-color: var(--xp-deep); box-shadow: 0 3px 0 var(--xp-deep); }
+
+/* мета-строка задачи (время/повтор/дата) */
+.row-meta { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
+.meta-pill {
+  font-size: 11px; font-weight: 600; color: var(--ink-soft);
+  background: var(--parchment-2); border: 2px solid var(--wood-light); padding: 0 5px;
+}
+.meta-pill.repeat { color: #fff; background: var(--blue); border-color: #3d6ba8; }
+
+/* панель выбранного дня в календаре */
+.cal-day { margin-top: 14px; border-top: 3px dashed var(--wood-light); padding-top: 12px; }
+.cal-day-title { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+.row-check.locked { opacity: 0.5; cursor: default; }
 
 /* статистика */
 .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -435,14 +469,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    ============================================================ */
 .widget-layer {
   position: absolute; z-index: 3;
-  top: calc(var(--safe-top) + var(--tg-top) + 64px);
+  top: calc(var(--safe-top) + var(--tg-top) + 92px);
   left: 8px; right: 8px;
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 8px; pointer-events: none;
 }
-.widget-col { display: flex; flex-direction: column; gap: 8px; max-width: 44%; }
-/* правую колонку опускаем ниже кошелька/кнопок, чтобы не накладывались */
-.widget-col--right { align-items: flex-end; margin-top: 44px; }
+/* align-items: flex-start — чтобы карточки были по содержимому, а не растягивались в пустые полосы */
+.widget-col { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 44%; }
+.widget-col--right { align-items: flex-end; }
 .widget {
   pointer-events: auto;
   display: flex; align-items: center; gap: 7px;
@@ -500,6 +534,87 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   border: 3px solid var(--wood-dark); box-shadow: 0 3px 0 var(--wood);
 }
 .wtoggle.on { background: var(--xp); color: #fff; border-color: var(--xp-deep); box-shadow: 0 3px 0 var(--xp-deep); }
+
+/* ============================================================
+   КАРМА
+   ============================================================ */
+.karma-bar {
+  position: absolute; z-index: 4;
+  top: calc(var(--safe-top) + var(--tg-top) + 60px);
+  left: 8px; right: 78px;
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 7px;
+  background: var(--parchment);
+  border: 3px solid var(--wood-dark);
+  box-shadow: inset 0 0 0 2px var(--parchment-2), 2px 2px 0 var(--shadow);
+}
+.karma-spark { font-size: 14px; flex-shrink: 0; }
+.karma-label { font-size: 12px; font-weight: 700; color: var(--ink); flex-shrink: 0; }
+.karma-track {
+  position: relative; flex: 1; min-width: 30px; height: 14px;
+  background: var(--wood-dark); border: 2px solid var(--wood-light); overflow: hidden;
+}
+.karma-fill {
+  height: 100%; width: 0%;
+  background: repeating-linear-gradient(90deg, #66c98a 0 6px, #4aa66c 6px 8px);
+  transition: width 0.4s cubic-bezier(.5,0,.2,1);
+}
+.karma-text {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 9px; font-weight: 700; color: #fff; text-shadow: 0 1px 0 var(--wood-dark);
+}
+.karma-lvl { font-size: 10px; font-weight: 700; color: var(--ink-soft); flex-shrink: 0; }
+.karma-btn {
+  flex-shrink: 0; width: 26px; height: 24px; font-size: 13px; line-height: 1;
+  background: var(--parchment-2); border: 3px solid var(--wood-dark);
+  box-shadow: 0 2px 0 var(--wood); display: grid; place-items: center;
+}
+.karma-btn:active { transform: translateY(1px); box-shadow: none; }
+
+/* модальные окна кармы (используют базовый .levelup оверлей) */
+.levelup.km-scroll { align-items: flex-start; overflow-y: auto; padding: 18px 14px calc(24px + var(--safe-bottom)); }
+.karma-intro, .karma-add {
+  max-width: 460px; width: 100%; text-align: left;
+  padding: 20px; background: var(--parchment); color: var(--ink);
+  border: 4px solid var(--wood-dark); box-shadow: inset 0 0 0 3px var(--parchment-2), 4px 6px 0 var(--shadow);
+}
+.ki-title, .ka-title {
+  font-family: 'Pixelify Sans', sans-serif; font-size: 20px; font-weight: 700;
+  text-align: center; margin-bottom: 12px; color: var(--wood-dark);
+}
+.ki-text p { font-size: 14px; line-height: 1.5; margin: 0 0 10px; }
+.ki-warm {
+  margin-top: 6px; padding: 12px; background: #fff2f2;
+  border: 3px solid #e6b0b0; box-shadow: inset 0 0 0 2px #ffe0e0;
+}
+.ki-warm p { font-size: 13px; line-height: 1.5; margin: 0 0 8px; color: #8a5a5a; }
+.ki-warm p:last-child { margin-bottom: 0; }
+.ki-cta { margin-top: 16px; }
+.ka-desc { font-size: 13px; line-height: 1.5; color: var(--ink-soft); margin-bottom: 12px; }
+.karma-ta { width: 100%; resize: none; min-height: 110px; line-height: 1.4; }
+.ka-actions { display: flex; gap: 10px; margin-top: 14px; }
+.ka-actions .btn { flex: 1; }
+
+/* празднование уровня кармы */
+.karma-up .lu-title { color: #4aa66c; }
+
+/* журнал */
+.karma-summary {
+  font-size: 14px; font-weight: 700; color: var(--wood-dark);
+  background: var(--parchment-2); border: 3px solid var(--wood-light);
+  padding: 8px 10px; margin-bottom: 10px;
+}
+.deed-card {
+  padding: 12px; margin-bottom: 2px; background: #fff;
+  border: 3px solid var(--wood-dark); box-shadow: 2px 2px 0 var(--shadow);
+}
+.deed-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.deed-date { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.deed-text { font-size: 15px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.journal-footer {
+  margin-top: 14px; padding: 14px; font-size: 13px; line-height: 1.55; color: #8a6a4a;
+  background: #fff7e8; border: 3px dashed var(--wood-light);
+}
 
 /* level up modal */
 .levelup {
@@ -602,6 +717,19 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
         <span id="coinCount">0</span>
       </div>
     </header>
+
+    <!-- Строка Кармы (доброта в реальной жизни) -->
+    <div class="karma-bar" id="karmaBar">
+      <span class="karma-spark">✨</span>
+      <span class="karma-label">Карма</span>
+      <div class="karma-track">
+        <div class="karma-fill" id="karmaFill"></div>
+        <span class="karma-text" id="karmaText">0 / 3</span>
+      </div>
+      <span class="karma-lvl" id="karmaLvl">ур.0</span>
+      <button class="karma-btn" id="karmaAddBtn" aria-label="Добавить доброе дело">➕</button>
+      <button class="karma-btn" id="karmaJournalBtn" aria-label="Журнал добрых дел">📖</button>
+    </div>
 
     <!-- Виджеты (настраиваемые панели вокруг персонажа) -->
     <div class="widget-layer" id="widgetLayer"></div>
@@ -744,6 +872,7 @@ const Game = (() => {
       gender: 'm',         // m | f
       skin: '#f2c9a0',
       hair: '#6b4a2f',
+      hairStyle: 'auto',   // auto | short | messy | long | ponytail | bun | buzz | curly
       shirt: '#4a8f68',
       accessory: 'none',   // none | hat | glasses | crown
       pet: 'none',         // none | slime | cat | bird | capybara
@@ -756,6 +885,9 @@ const Game = (() => {
     achievements: [], // {id, title, glyph, date}
     widgets: ['today', 'habits', 'goal'], // виджеты на главной
     scene: { env: 'meadow', time: 'auto' }, // локация + время суток (auto = по реальному времени)
+    karma: { level: 0, progress: 0 },   // карма — доброта в реальной жизни
+    deeds: [],                          // журнал добрых дел {id, text, date, karmaLevel}
+    flags: { karmaIntro: false },       // показанные обучалки (легко расширять)
     stats: { tasksDone: 0, habitsDone: 0, goalsDone: 0 },
     createdAt: Date.now(),
   });
@@ -771,6 +903,11 @@ const Game = (() => {
     if (!s.scene) s.scene = { env: 'meadow', time: 'auto' };
     if (!s.scene.env) s.scene.env = 'meadow';
     if (!s.scene.time) s.scene.time = 'auto';
+    if (!s.karma) s.karma = { level: 0, progress: 0 };
+    if (typeof s.karma.level !== 'number') s.karma.level = 0;
+    if (typeof s.karma.progress !== 'number') s.karma.progress = 0;
+    if (!Array.isArray(s.deeds)) s.deeds = [];
+    if (!s.flags) s.flags = { karmaIntro: false };
     if (!s.stats) s.stats = {};
     if (s.stats.tasksDone === undefined) s.stats.tasksDone = 0;
     if (s.stats.habitsDone === undefined) s.stats.habitsDone = 0;
@@ -806,14 +943,35 @@ const Game = (() => {
   function setScene(patch) { Object.assign(s.scene, patch); save(); emit(); }
 
   /* --- задачи --- */
-  function addTask(title, reward, date) {
+  // addTask(title, opts) где opts = {reward, date, time, days}
+  // (совместимо со старым addTask(title, reward, date))
+  function addTask(title, a, b) {
     if (!title || !title.trim()) return;
-    s.tasks.push({ id: uid(), title: title.trim(), reward: reward || 15, date: date || null, done: false });
+    let opts = {};
+    if (typeof a === 'object' && a !== null) opts = a;
+    else opts = { reward: a, date: b };
+    const days = Array.isArray(opts.days) && opts.days.length ? opts.days.slice().sort() : null;
+    s.tasks.push({
+      id: uid(), title: title.trim(),
+      reward: opts.reward || 15,
+      date: days ? null : (opts.date || null),
+      time: opts.time || null,     // 'HH:MM-HH:MM' | 'HH:MM' | null
+      days,                        // [1..7] Пн..Вс | null (еженедельная)
+      done: false, lastDone: null,
+    });
     save(); emit();
   }
   function toggleTask(id) {
     const t = s.tasks.find(x => x.id === id);
     if (!t) return null;
+    if (t.days) {
+      // еженедельная — отмечаем выполнение на сегодня (награда раз в день)
+      const today = todayKey();
+      if (t.lastDone === today) { t.lastDone = null; save(); emit(); return null; } // снять отметку
+      t.lastDone = today; s.stats.tasksDone++;
+      const res = reward(t.reward, Math.ceil(t.reward / 3));
+      save(); emit(); return res;
+    }
     t.done = !t.done;
     let res = null;
     if (t.done) { s.stats.tasksDone++; res = reward(t.reward, Math.ceil(t.reward / 3)); }
@@ -821,6 +979,14 @@ const Game = (() => {
     return t.done ? res : null;
   }
   function delTask(id) { s.tasks = s.tasks.filter(x => x.id !== id); save(); emit(); }
+
+  // Пн=1 .. Вс=7
+  function weekdayOf(key) { const [y, m, d] = key.split('-').map(Number); const jd = new Date(y, m - 1, d).getDay(); return ((jd + 6) % 7) + 1; }
+  function taskDoneOn(t, key) { return t.days ? (t.lastDone === key) : !!t.done; }
+  function tasksForDate(key) {
+    const wd = weekdayOf(key);
+    return s.tasks.filter(t => (t.days ? t.days.includes(wd) : t.date === key));
+  }
 
   /* --- привычки --- */
   function addHabit(title) {
@@ -890,6 +1056,35 @@ const Game = (() => {
   }
   function delGoal(id) { s.goals = s.goals.filter(x => x.id !== id); save(); emit(); }
 
+  /* --- карма (доброта в реальной жизни) --- */
+  // сколько добрых дел нужно, чтобы достичь уровня n (1-based)
+  function karmaNeed(n) {
+    const table = [3, 5, 7, 10, 15];
+    if (n <= 0) return table[0];
+    if (n <= table.length) return table[n - 1];
+    return 15 + (n - 5) * 6; // дальше плавно растёт
+  }
+  function karmaNext() { return karmaNeed(s.karma.level + 1); }
+  function addDeed(text) {
+    const t = (text || '').trim();
+    if (!t) return null;
+    s.deeds.unshift({ id: uid(), text: t, date: todayKey(), karmaLevel: s.karma.level });
+    s.karma.progress++;
+    let leveled = null;
+    const need = karmaNeed(s.karma.level + 1);
+    if (s.karma.progress >= need) {
+      s.karma.progress = 0; s.karma.level++;
+      const xp = 30 + s.karma.level * 20, coins = 20 + s.karma.level * 15; // награда растёт с уровнем
+      const res = reward(xp, coins);
+      pushAchievement('✨', `Карма ур. ${s.karma.level}`);
+      leveled = { level: s.karma.level, xp, coins, res };
+    }
+    save(); emit();
+    return leveled;
+  }
+  function delDeed(id) { s.deeds = s.deeds.filter(d => d.id !== id); save(); emit(); }
+  function setFlag(k, v) { s.flags[k] = v; save(); emit(); }
+
   /* --- достижения --- */
   function pushAchievement(glyph, title) {
     const a = { id: uid(), glyph, title, date: todayKey() };
@@ -915,10 +1110,11 @@ const Game = (() => {
 
   return {
     get, save, onChange, emit, reward, setName, setLook, setScene,
-    addTask, toggleTask, delTask,
+    addTask, toggleTask, delTask, tasksForDate, taskDoneOn, weekdayOf,
     addHabit, markHabit, delHabit, habitDoneToday,
     addTxn, delTxn, balance, totals,
     addGoal, addToGoal, delGoal,
+    karmaNeed, karmaNext, addDeed, delDeed, setFlag,
     pushAchievement, toggleWidget, hasWidget,
     xpMax, todayKey, dayKey,
   };
@@ -1048,48 +1244,176 @@ const Scene = (() => {
   }
 
   function drawRoom(ctx, st, t, P, tod) {
-    const floorY = st.groundY;
-    // стена
-    ctx.fillStyle = P.wall; ctx.fillRect(0, 0, st.W, floorY);
-    // обои-полоски
-    ctx.fillStyle = shade(P.wall, -8);
-    for (let x = 6; x < st.W; x += 12) ctx.fillRect(x, 0, 2, floorY);
+    const W = st.W, H = st.H, floorY = st.groundY;
+    const night = P.night;
+    const rc = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+
+    // ----- СТЕНА (тёплый градиент) -----
+    const wall = night ? ['#5a4a63', '#514257', '#48394d'] : ['#f3cfac', '#eec09a', '#e6b48c'];
+    const wbh = floorY / wall.length;
+    wall.forEach((c, i) => rc(0, i * wbh, W, wbh + 1, c));
+    // мягкое пятно света в центре
+    ctx.fillStyle = night ? 'rgba(255,220,180,0.05)' : 'rgba(255,240,210,0.14)';
+    ctx.fillRect(W * 0.5 - 34, 0, 68, floorY);
+
+    // ----- ПОЛ (дерево) -----
+    const floorC = night ? '#5a4634' : '#c78b54', floorD = shade(floorC, -16), floorL = shade(floorC, 14);
+    rc(0, floorY, W, H - floorY, floorC);
+    rc(0, floorY, W, 2, floorL);
+    ctx.fillStyle = floorD;
+    for (let x = -((t * 0) % 18); x < W; x += 18) ctx.fillRect(Math.round(x), floorY + 2, 1, H - floorY);
     // плинтус
-    ctx.fillStyle = P.wallLo; ctx.fillRect(0, floorY - 6, st.W, 6);
-    // пол
-    ctx.fillStyle = P.floor; ctx.fillRect(0, floorY, st.W, st.H - floorY);
-    ctx.fillStyle = P.floorD;
-    for (let x = 0; x < st.W; x += 16) ctx.fillRect(x, floorY, 1, st.H - floorY);
-    ctx.fillRect(0, floorY, st.W, 2);
-    // окно (справа) с небом текущего времени
-    const wx = st.W - 40, wy = 12, ww = 30, wh = 30;
-    ctx.fillStyle = '#6b4a2f'; ctx.fillRect(wx - 3, wy - 3, ww + 6, wh + 6);
+    rc(0, floorY - 4, W, 4, night ? '#3f3348' : '#c98f63');
+    rc(0, floorY - 4, W, 1, shade(night ? '#3f3348' : '#c98f63', 20));
+
+    // ----- ОКНО (по центру сверху) -----
+    const ww = Math.min(58, Math.round(W * 0.42)), wh = Math.min(46, Math.round(floorY * 0.62));
+    const wx = Math.round(W / 2 - ww / 2), wy = 10;
+    // рама
+    rc(wx - 4, wy - 4, ww + 8, wh + 8, '#7a5334');
+    rc(wx - 4, wy - 4, ww + 8, 2, '#9a6f45');
+    // небо в окне
     const sbh = wh / P.sky.length;
-    P.sky.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(wx, wy + Math.floor(i * sbh), ww, Math.ceil(sbh) + 1); });
-    drawCelestial(ctx, st, t, P, wx + ww - 16, wy + 4);
-    if (P.night) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(wx + 5, wy + 6, 1, 1); ctx.fillRect(wx + 12, wy + 12, 1, 1); ctx.fillRect(wx + 20, wy + 8, 1, 1); }
-    // рама-крестовина
-    ctx.fillStyle = '#6b4a2f'; ctx.fillRect(wx + ww / 2 - 1, wy, 2, wh); ctx.fillRect(wx, wy + wh / 2 - 1, ww, 2);
-    // картина (слева)
-    ctx.fillStyle = '#6b4a2f'; ctx.fillRect(18, 16, 24, 18);
-    ctx.fillStyle = '#bfe0d8'; ctx.fillRect(21, 19, 18, 12);
-    ctx.fillStyle = '#8fc27a'; ctx.fillRect(21, 27, 18, 4);
-    ctx.fillStyle = '#f6c453'; ctx.fillRect(33, 21, 3, 3);
-    // растение у пола (слева)
-    ctx.fillStyle = '#c07a4a'; ctx.fillRect(14, floorY - 8, 8, 8);
-    ctx.fillStyle = '#4d8a46'; ctx.fillRect(15, floorY - 16, 6, 9); ctx.fillRect(12, floorY - 12, 4, 5); ctx.fillRect(20, floorY - 13, 4, 6);
-    // коврик под персонажем
-    ctx.fillStyle = shade(P.floor, 18); ctx.fillRect(st.W / 2 - 26, floorY + 6, 52, 6);
-    ctx.fillStyle = P.floorD; ctx.fillRect(st.W / 2 - 26, floorY + 8, 52, 1);
-    // пылинки
+    P.sky.forEach((c, i) => rc(wx, wy + i * sbh, ww, sbh + 1, c));
+    // луна/солнце + звёзды
+    drawCelestial(ctx, st, t, P, wx + ww - 20, wy + 5);
+    if (night) {
+      const stars = [[8, 10], [18, 6], [26, 16], [36, 9], [44, 20], [14, 24], [50, 12], [30, 28]];
+      stars.forEach(([sxp, syp], i) => {
+        if (sxp < ww - 2 && syp < wh - 2) {
+          const a = 0.4 + Math.abs(Math.sin(t / 30 + i)) * 0.6;
+          rc(wx + sxp, wy + syp, 1, 1, `rgba(255,255,255,${a})`);
+        }
+      });
+    } else {
+      // облачко
+      rc(wx + 8, wy + 10, 14, 4, 'rgba(255,255,255,0.85)'); rc(wx + 11, wy + 7, 8, 3, 'rgba(255,255,255,0.85)');
+    }
+    // перекладины рамы
+    rc(wx + ww / 2 - 1, wy, 2, wh, '#7a5334');
+    rc(wx, wy + wh / 2 - 1, ww, 2, '#7a5334');
+    rc(wx - 1, wy - 1, ww + 2, 1, '#8a6040');
+
+    // ----- ГИРЛЯНДА (тёплые огоньки над окном) -----
+    const lights = Math.floor(ww / 6) + 2;
+    for (let i = 0; i <= lights; i++) {
+      const lx = wx - 2 + (i / lights) * (ww + 4);
+      const ly = wy - 3 + Math.sin(i * 0.9) * 2 + Math.sin(i) * 1;
+      rc(lx, ly - 2, 1, 2, '#7a6a4a'); // проводок
+      const tw = 0.55 + Math.abs(Math.sin(t / 22 + i * 1.3)) * 0.45;
+      rc(lx - 0.5, ly, 2, 2, `rgba(255,208,120,${tw})`);
+      ctx.fillStyle = `rgba(255,180,90,${tw * 0.4})`; ctx.fillRect(Math.round(lx - 1), Math.round(ly - 1), 4, 4);
+    }
+
+    // ----- ШТОРЫ (по бокам окна) -----
+    const curt = night ? ['#b06a72', '#96545d'] : ['#e79aa2', '#d97f89'];
+    function curtain(cxx, dir) {
+      for (let f = 0; f < 3; f++) {
+        const fx = cxx + dir * f * 4;
+        rc(fx, wy - 4, 4, wh + 8, curt[f % 2]);
+        rc(fx, wy - 4, 1, wh + 8, shade(curt[f % 2], -18));
+      }
+      // подхват
+      rc(cxx - (dir < 0 ? 6 : 0), wy + wh - 6, 12, 2, shade(curt[1], -25));
+    }
+    curtain(wx - 12, 1);
+    curtain(wx + ww, 1);
+
+    // ----- СТОЛ с ноутбуком (слева, если хватает места сбоку) -----
+    const dx = Math.round(W * 0.14), dtopY = floorY - 26, dtopW = 46;
+    const showDesk = dx + dtopW < W * 0.52;
+    if (showDesk) {
+      rc(dx, dtopY, dtopW, 4, '#b07a44');           // столешница
+      rc(dx, dtopY, dtopW, 1, '#c89058');
+      rc(dx, dtopY + 4, dtopW, 1, '#8a5c30');
+      rc(dx + 3, dtopY + 4, 3, 22, '#96652f');      // ножки
+      rc(dx + dtopW - 6, dtopY + 4, 3, 22, '#96652f');
+      // ноутбук
+      const nx = dx + 16;
+      rc(nx, dtopY - 9, 15, 9, '#5a6b7a');          // экран
+      rc(nx + 1, dtopY - 8, 13, 7, night ? '#9fd4e8' : '#bfe6f2'); // свечение экрана
+      rc(nx + 2, dtopY - 7, 5, 2, '#e8f6ff');
+      rc(nx - 1, dtopY - 1, 17, 2, '#7a8894');      // основание
+      if (night) { ctx.fillStyle = 'rgba(160,220,240,0.25)'; ctx.fillRect(nx - 2, dtopY - 10, 19, 12); }
+      // стопка книг
+      rc(dx + dtopW - 12, dtopY - 6, 9, 2, '#d97f6a');
+      rc(dx + dtopW - 11, dtopY - 8, 8, 2, '#7aa6d0');
+      rc(dx + dtopW - 13, dtopY - 4, 10, 2, '#e0b45a');
+      // горшок с растением
+      rc(dx + 2, dtopY - 8, 6, 6, '#c07a4a');
+      rc(dx + 1, dtopY - 12, 3, 5, '#4d8a46'); rc(dx + 4, dtopY - 14, 3, 6, '#5aa055'); rc(dx + 6, dtopY - 11, 3, 4, '#4d8a46');
+    } else {
+      // напольное растение слева
+      const plx = Math.round(W * 0.12), ply = floorY - 2;
+      rc(plx, ply - 8, 8, 8, '#c07a4a'); rc(plx, ply - 8, 8, 1, '#d68f5a');
+      rc(plx + 1, ply - 16, 3, 9, '#4d8a46'); rc(plx - 2, ply - 12, 4, 5, '#5aa055'); rc(plx + 5, ply - 13, 4, 6, '#4d8a46'); rc(plx + 2, ply - 19, 3, 5, '#5aa055');
+    }
+
+    // ----- КАРТИНА / ПОЛКА (справа, если есть место) -----
+    if (W > 130) {
+      const px = Math.round(W * 0.8);
+      rc(px, 18, 22, 16, '#7a5334');
+      rc(px + 2, 20, 18, 12, night ? '#3a4a6a' : '#bfe0d8');
+      rc(px + 2, 27, 18, 5, night ? '#2f5a3f' : '#8fc27a');
+      rc(px + 14, 22, 3, 3, night ? '#eaf0ff' : '#f6c453');
+    }
+
+    // ----- КОВЁР (под персонажем) -----
+    const rugC = night ? '#8a5560' : '#e79aa2', rugC2 = night ? '#6f4650' : '#d97f89';
+    const rw = Math.min(70, Math.round(W * 0.5));
+    for (let i = 0; i < 4; i++) {
+      const iw = rw - i * 10, iy = floorY + 4 + i * 2;
+      rc(W / 2 - iw / 2, iy, iw, 3, i % 2 ? rugC2 : rugC);
+    }
+
+    // ----- пылинки -----
     st.motes.forEach(m => {
-      m.x += m.sp * 0.5; m.ph += 0.04; if (m.x > st.W) m.x = 0;
+      m.x += m.sp * 0.4; m.ph += 0.03; if (m.x > W) m.x = 0;
       const fy = m.y + Math.sin(m.ph) * 2;
-      ctx.fillStyle = P.night ? 'rgba(255,235,150,0.5)' : 'rgba(255,255,240,0.5)';
-      ctx.fillRect(Math.round(m.x), Math.round(fy), 1, 1);
+      rc(Math.round(m.x), Math.round(fy), 1, 1, night ? 'rgba(255,225,150,0.5)' : 'rgba(255,255,240,0.55)');
     });
   }
 
+
+  /* --- причёски (T рисует клетками относительно головы) --- */
+  function drawHair(T, hair, hairL, hairD, style) {
+    const cap = () => { T(3.4, 1.3, 7.2, 1.8, hair); T(3.4, 1.3, 7.2, 0.5, hairL); };
+    if (style === 'buzz') {
+      T(3.6, 1.6, 6.8, 1.2, hair); T(3.6, 1.6, 6.8, 0.4, hairL);
+      T(3.5, 2.2, 0.7, 1.3, hairD); T(10.3, 2.2, 0.7, 1.3, hairD);
+    } else if (style === 'messy') {
+      cap();
+      T(3.7, 0.4, 1.2, 1.1, hair); T(5.3, 0.1, 1.2, 1.4, hair); T(6.9, 0.2, 1.2, 1.3, hair); T(8.6, 0.5, 1.2, 1.0, hair);
+      T(3.3, 1.9, 0.9, 2.4, hair); T(10.2, 1.9, 0.9, 2.4, hair);
+      T(4.0, 3.0, 1.4, 0.7, hair); T(8.6, 3.0, 1.4, 0.7, hair);
+    } else if (style === 'long') {
+      T(3.4, 1.3, 7.2, 1.8, hair); T(3.4, 1.3, 7.2, 0.5, hairL);
+      T(3.2, 1.9, 1.2, 7.2, hair); T(10.2, 1.9, 1.2, 7.2, hair);
+      T(3.2, 1.9, 0.5, 7.2, hairD); T(10.9, 1.9, 0.5, 7.2, hairD);
+      T(3.9, 2.6, 1.4, 1.2, hair); T(9.1, 2.6, 1.4, 1.2, hair);
+      T(6.2, 2.5, 1.6, 0.7, hair);
+    } else if (style === 'ponytail') {
+      cap();
+      T(3.4, 1.9, 0.9, 2.6, hair); T(10.1, 1.9, 0.9, 2.6, hair);
+      T(4.2, 3.0, 1.4, 0.6, hair); T(8.4, 3.0, 1.4, 0.6, hair);
+      // хвост сбоку
+      T(10.6, 2.0, 1.2, 5.4, hair); T(10.6, 2.0, 0.5, 5.4, hairD); T(10.4, 2.1, 0.7, 0.8, hairL);
+    } else if (style === 'bun') {
+      cap();
+      T(6.0, -0.3, 2.0, 1.8, hair); T(6.0, -0.3, 2.0, 0.5, hairL); // пучок
+      T(3.4, 1.9, 1.0, 3.6, hair); T(10.0, 1.9, 1.0, 3.6, hair);
+      T(4.2, 3.2, 1.2, 0.6, hair); T(8.6, 3.2, 1.2, 0.6, hair);
+    } else if (style === 'curly') {
+      T(3.2, 1.4, 7.6, 2.0, hair);
+      T(3.0, 0.8, 1.7, 1.3, hair); T(4.9, 0.5, 1.7, 1.4, hair); T(7.1, 0.6, 1.7, 1.3, hair); T(9.1, 0.9, 1.5, 1.2, hair);
+      T(3.1, 2.0, 1.2, 3.4, hair); T(10.1, 2.0, 1.2, 3.4, hair);
+      T(3.4, 0.9, 0.7, 0.7, hairL); T(7.4, 0.8, 0.7, 0.7, hairL);
+    } else { // short
+      T(3.4, 1.3, 7.2, 1.9, hair); T(3.4, 1.3, 7.2, 0.5, hairL);
+      T(3.3, 1.9, 1.0, 3.0, hair); T(10.1, 1.9, 1.0, 3.0, hair); T(3.3, 1.9, 1.0, 3.0, hairD);
+      T(4.0, 3.0, 1.6, 0.7, hair); T(8.4, 3.0, 1.6, 0.7, hair); T(6.0, 2.9, 2.0, 0.6, hair);
+    }
+  }
 
   // feetY = y нижней точки ног; u = размер одной клетки персонажа в пикселях canvas
   function drawHero(ctx, cx, feetY, u, look, o) {
@@ -1193,19 +1517,8 @@ const Scene = (() => {
     T(6.3, 7.7, 1.4, 0.4, shade(skin, -55)); T(6.6, 8.0, 0.8, 0.3, '#c96b6b');
 
     // ---- ВОЛОСЫ ----
-    if (female) {
-      T(3.4, 1.3, 7.2, 1.8, hair); T(3.4, 1.3, 7.2, 0.5, hairL);
-      T(3.2, 1.9, 1.2, 7.2, hair); T(10.2, 1.9, 1.2, 7.2, hair);   // длинные пряди
-      T(3.2, 1.9, 0.5, 7.2, hairD); T(10.9, 1.9, 0.5, 7.2, hairD);
-      T(3.9, 2.6, 1.4, 1.2, hair); T(9.1, 2.6, 1.4, 1.2, hair);    // чёлка по бокам
-      T(6.2, 2.5, 1.6, 0.7, hair);                                  // серединка чёлки
-    } else {
-      T(3.4, 1.3, 7.2, 1.9, hair); T(3.4, 1.3, 7.2, 0.5, hairL);
-      T(3.3, 1.9, 1.0, 3.0, hair); T(10.1, 1.9, 1.0, 3.0, hair);
-      T(3.3, 1.9, 1.0, 3.0, hairD);
-      T(4.0, 3.0, 1.6, 0.7, hair); T(8.4, 3.0, 1.6, 0.7, hair);    // вихор-чёлка
-      T(6.0, 2.9, 2.0, 0.6, hair);
-    }
+    const hStyle = (look.hairStyle && look.hairStyle !== 'auto') ? look.hairStyle : (female ? 'long' : 'short');
+    drawHair(T, hair, hairL, hairD, hStyle);
 
     // ---- АКСЕССУАРЫ ----
     if (look.accessory === 'hat') {
@@ -1216,88 +1529,144 @@ const Scene = (() => {
       T(4.3, -0.3, 0.9, 1.1, '#f6c453'); T(6.6, -0.5, 0.9, 1.3, '#f6c453'); T(8.9, -0.3, 0.9, 1.1, '#f6c453');
       T(6.7, 0.0, 0.7, 0.7, '#e0524a');
     } else if (look.accessory === 'glasses') {
-      T(4.5, 4.7, 1.9, 1.6, 'rgba(40,32,24,0.92)'); T(7.5, 4.7, 1.9, 1.6, 'rgba(40,32,24,0.92)');
-      T(4.75, 4.95, 1.4, 1.0, 'rgba(150,200,230,0.4)'); T(7.75, 4.95, 1.4, 1.0, 'rgba(150,200,230,0.4)');
-      T(6.4, 5.1, 1.1, 0.35, '#2a2018');
+      const fr = '#2c2420', gl = 'rgba(150,205,235,0.35)';
+      // дужки к ушам
+      T(3.2, 5.5, 1.4, 0.4, fr); T(9.4, 5.5, 1.4, 0.4, fr);
+      // левая линза
+      T(4.4, 4.7, 2.2, 2.2, fr); T(4.75, 5.05, 1.5, 1.5, gl);
+      // правая линза
+      T(7.4, 4.7, 2.2, 2.2, fr); T(7.75, 5.05, 1.5, 1.5, gl);
+      // переносица
+      T(6.5, 5.3, 1.0, 0.5, fr);
+      // блик на стекле
+      T(4.9, 5.1, 0.5, 0.5, 'rgba(255,255,255,0.6)'); T(7.9, 5.1, 0.5, 0.5, 'rgba(255,255,255,0.6)');
     }
   }
 
-  /* --- питомец --- */
+  /* --- питомец: рисуется на пиксель-сетке с авто-контуром (чисто, без пропущенных линий) --- */
+  const PET_FILL = {
+    capybara(r, s) {
+      const b = '#b07d52', d = '#8a5f3c', l = '#c69468', n = '#5b3d28', e = '#2a2018';
+      r(3, 6, 9, 5, b); r(3, 6, 9, 1, l); r(3, 10, 9, 1, d);
+      r(11, 4, 4, 4, b); r(11, 4, 4, 1, l);              // голова справа
+      s(11, 3, b); s(13, 3, b);                          // ушки
+      r(14, 5, 1, 2, n);                                 // нос
+      s(12, 5, e);                                       // глаз
+      r(4, 11, 2, 2, d); r(7, 11, 2, 2, d); r(10, 11, 2, 2, d);
+    },
+    cat(r, s) {
+      const c = '#e6ab6a', d = '#c98a52', e = '#2a2018', p = '#d98a86';
+      r(6, 6, 6, 6, c); r(6, 6, 6, 1, d);
+      r(5, 3, 7, 4, c); r(5, 3, 7, 1, d);
+      s(5, 1, c); s(5, 2, c); s(11, 1, c); s(11, 2, c);  // ушки
+      s(6, 2, d); s(10, 2, d);
+      s(7, 5, e); s(10, 5, e);                            // глаза
+      s(8, 6, p);                                         // нос
+      r(12, 7, 2, 4, c); s(12, 6, c);                     // хвост
+      r(6, 11, 2, 1, d); r(9, 11, 2, 1, d);
+      s(6, 4, d); s(8, 4, d); s(11, 4, d);                // полоски
+    },
+    dog(r, s) {
+      const c = '#c99a63', d = '#a97f4f', m = '#e8d0a2', e = '#2a2018';
+      r(6, 6, 6, 6, c); r(6, 6, 6, 1, d);
+      r(5, 3, 7, 4, c); r(5, 3, 7, 1, m);
+      r(4, 3, 2, 4, d); r(11, 3, 2, 4, d);               // висячие уши
+      r(7, 5, 3, 2, m);                                   // мордочка
+      s(8, 6, e);                                         // нос
+      s(6, 4, e); s(10, 4, e);                            // глаза
+      r(12, 7, 2, 3, c); s(12, 6, c);                     // хвост
+      r(6, 11, 2, 1, d); r(9, 11, 2, 1, d);
+    },
+    fox(r, s) {
+      const c = '#e07a3f', w = '#f5e6d0', e = '#2a2018';
+      r(6, 6, 6, 5, c); r(6, 6, 6, 1, c);
+      r(5, 3, 7, 4, c);
+      s(5, 1, c); s(5, 2, c); s(11, 1, c); s(11, 2, c);   // острые уши
+      s(5, 1, e); s(11, 1, e);                            // чёрные кончики
+      r(6, 5, 5, 2, w);                                   // белая мордочка
+      s(8, 6, e);                                         // нос
+      s(6, 4, e); s(10, 4, e);
+      r(12, 5, 2, 4, c); r(13, 8, 1, 2, w);              // пышный хвост с белым
+      r(6, 11, 2, 1, e); r(9, 11, 2, 1, e);              // тёмные лапки
+    },
+    rabbit(r, s) {
+      const c = '#eae6de', d = '#cfc9bf', pk = '#e7a6b0', e = '#2a2018';
+      r(6, 7, 5, 4, c); r(6, 7, 5, 1, d);
+      r(5, 4, 6, 4, c);
+      r(6, 1, 1, 4, c); r(9, 1, 1, 4, c);                // длинные уши
+      s(6, 2, pk); s(6, 3, pk); s(9, 2, pk); s(9, 3, pk);
+      s(6, 6, e); s(9, 6, e);                            // глаза
+      s(7, 7, pk);                                       // носик
+      r(11, 9, 1, 1, c);                                 // хвостик
+      r(6, 11, 2, 1, d); r(9, 11, 2, 1, d);
+    },
+    panda(r, s) {
+      const w = '#f4f2ec', k = '#2f2a26', e = '#2a2018';
+      r(6, 6, 6, 6, w); r(6, 6, 6, 1, '#e6e2da');
+      r(5, 3, 7, 4, w);
+      r(5, 2, 2, 2, k); r(10, 2, 2, 2, k);               // чёрные ушки
+      r(6, 4, 2, 2, k); r(9, 4, 2, 2, k);                // пятна у глаз
+      s(7, 5, w); s(10, 5, w);
+      s(8, 6, k);                                        // нос
+      r(5, 7, 2, 3, k); r(10, 7, 2, 3, k);               // чёрные лапки
+      r(6, 11, 2, 1, k); r(9, 11, 2, 1, k);
+    },
+    bird(r, s) {
+      const b = '#f2c94c', o = '#e0902f', e = '#2a2018';
+      r(6, 5, 6, 6, b); r(6, 5, 6, 1, '#ffe08a');
+      r(5, 4, 7, 3, b);
+      r(4, 8, 2, 2, b); r(12, 8, 2, 2, b);              // крылышки
+      r(12, 6, 2, 1, o);                                // клюв
+      s(10, 5, e); s(7, 5, e);
+      r(6, 11, 1, 1, o); r(9, 11, 1, 1, o);             // лапки
+      s(11, 6, o);
+    },
+    slime(r, s) {
+      const g = '#6bcf8a', d = '#4fae6c', L = '#9fe6b4', e = '#2a2018';
+      r(4, 6, 8, 5, g); r(5, 4, 6, 2, g); r(6, 3, 4, 1, g);
+      r(4, 10, 8, 1, d); r(5, 4, 2, 1, L);
+      s(6, 7, e); s(9, 7, e);                            // глаза
+      r(7, 8, 2, 1, d);                                 // улыбка
+    },
+  };
+
   function drawPet(ctx, x, groundY, u, pet, tick) {
-    if (pet === 'none') return;
-    const hop = Math.abs(Math.sin(tick / 22)) * 3;
-    const y = groundY - hop;
+    if (pet === 'none' || !PET_FILL[pet]) return;
+    const GW = 18, GH = 14;
+    const g = new Array(GW * GH).fill(null);
+    const idx = (cx, cy) => cy * GW + cx;
+    const s = (cx, cy, c) => { if (cx >= 0 && cx < GW && cy >= 0 && cy < GH && c) g[idx(cx, cy)] = c; };
+    const r = (cx, cy, w, h, c) => { for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) s(cx + xx, cy + yy, c); };
+    PET_FILL[pet](r, s);
+
+    // контур: пустая клетка рядом с заполненной → тёмная обводка
+    const OL = '#3a2a22';
+    const outline = [];
+    for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) {
+      if (g[idx(cx, cy)]) continue;
+      if ((cx > 0 && g[idx(cx - 1, cy)]) || (cx < GW - 1 && g[idx(cx + 1, cy)]) ||
+          (cy > 0 && g[idx(cx, cy - 1)]) || (cy < GH - 1 && g[idx(cx, cy + 1)])) outline.push(cx + cy * GW);
+    }
+    outline.forEach(k => { g[k] = OL; });
+
+    // границы содержимого
+    let minX = GW, maxX = 0, maxY = 0;
+    for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) if (g[idx(cx, cy)]) {
+      if (cx < minX) minX = cx; if (cx > maxX) maxX = cx; if (cy > maxY) maxY = cy;
+    }
+    const centerX = (minX + maxX + 1) / 2;
+    const pu = Math.max(2, Math.round(u * 0.72));
+    const bob = (Math.floor(tick / 45) % 2 === 0) ? 0 : 1; // тихое покачивание
+
+    // тень
     ctx.fillStyle = 'rgba(40,60,30,0.20)';
-    ctx.fillRect(Math.round(x), Math.round(groundY - 1), Math.round(4.4 * u), Math.round(u));
-    const p = (c, r, w, h, col) => {
-      ctx.fillStyle = col;
-      ctx.fillRect(Math.round(x + c * u), Math.round(y - r * u), Math.round(w * u), Math.round(h * u));
-    };
-    const EYE = '#2a2018';
-    if (pet === 'slime') {
-      p(0.5, 0, 4.5, 3, '#6bcf8a'); p(1, 3, 3.5, 0.9, '#6bcf8a');
-      p(1, 2.2, 1.1, 0.9, '#9fe6b4'); p(0.5, 0, 4.5, 0.5, '#4fae6c');
-      p(1.6, 1.1, 0.8, 1.0, EYE); p(3.1, 1.1, 0.8, 1.0, EYE);
-      p(2.1, 0.6, 1.3, 0.3, '#2a7a4a');
-    } else if (pet === 'cat') {
-      const c = '#e6ab6a', cd = '#c98a52';
-      p(1, 0, 3.2, 2.4, c); p(0.6, 2.2, 3.9, 2.3, c);
-      p(0.8, 4.2, 1.0, 1.1, c); p(3.3, 4.2, 1.0, 1.1, c);       // ушки
-      p(1.0, 4.4, 0.5, 0.6, cd); p(3.5, 4.4, 0.5, 0.6, cd);
-      p(4.1, 0.3, 1.0, 1.9, c); p(4.1, 1.8, 1.0, 0.5, cd);      // хвост
-      p(1.4, 3.0, 0.7, 0.9, EYE); p(3.0, 3.0, 0.7, 0.9, EYE);
-      p(2.2, 2.6, 0.6, 0.4, '#b06a5a');                          // носик
-      p(0.9, 3.2, 0.4, 0.5, cd); p(3.8, 3.2, 0.4, 0.5, cd);      // полоски-щёки
-    } else if (pet === 'bird') {
-      const b = '#6fb6e0', bd = '#4f96c4';
-      p(0.6, 0.2, 3.6, 2.8, b); p(0.6, 2.6, 3.6, 0.5, bd);
-      p(1.0, 0.8, 1.6, 1.4, bd);                                 // крыло
-      p(3.9, 1.6, 1.1, 0.8, '#f6c453');                          // клюв
-      p(2.6, 2.0, 0.7, 0.8, EYE);
-      p(0.7, 3.0, 3.4, 0.5, '#9fd0ee');                          // хохолок-блик
-    } else if (pet === 'capybara') {
-      const b = '#a9784f', bl = '#c0916a', bd = '#8a5f3c', ns = '#6e4a30';
-      p(0, 0, 8, 2.8, b); p(0, 2.4, 8, 0.5, bl); p(0, 0, 0.7, 2.8, bd);
-      p(6.2, 1.0, 2.0, 2.0, b); p(6.2, 2.5, 2.0, 0.5, bl);       // морда
-      p(8, 1.6, 0.9, 1.0, ns); p(6.5, 2.9, 0.8, 0.7, b); p(7.5, 2.9, 0.8, 0.7, b); // ушки
-      p(7.0, 1.9, 0.7, 0.7, EYE);
-      p(1, 0, 1.4, 0.8, bd); p(4, 0, 1.4, 0.8, bd);              // лапки
-    } else if (pet === 'dog') {
-      const c = '#c79a6a', cd = '#a97f4f', mu = '#e6cc9e';
-      p(1, 0, 3.2, 2.6, c); p(0.5, 2.2, 3.8, 2.4, c);
-      p(0.1, 3.2, 1.0, 1.8, cd); p(3.9, 3.2, 1.0, 1.8, cd);      // висячие ушки
-      p(1.3, 2.1, 2.2, 1.2, mu);                                  // мордочка
-      p(2.0, 2.7, 0.8, 0.6, EYE);                                 // нос
-      p(1.3, 3.4, 0.6, 0.7, EYE); p(3.0, 3.4, 0.6, 0.7, EYE);     // глаза
-      p(4.1, 0.5, 1.0, 1.3, c); p(4.1, 1.6, 1.0, 0.4, cd);        // хвост
-      p(1.2, 0, 0.9, 0.7, cd); p(3.0, 0, 0.9, 0.7, cd);           // лапки
-    } else if (pet === 'fox') {
-      const c = '#e07a3f', wh = '#f5e6d0';
-      p(1, 0, 3.2, 2.3, c); p(0.6, 2.1, 3.6, 2.2, c);
-      p(0.6, 3.9, 1.0, 1.3, c); p(0.6, 4.8, 1.0, 0.5, EYE);      // ушки с чёрным
-      p(3.2, 3.9, 1.0, 1.3, c); p(3.2, 4.8, 1.0, 0.5, EYE);
-      p(1.3, 2.0, 2.2, 1.3, wh);                                  // белая мордочка
-      p(2.1, 2.7, 0.6, 0.5, EYE);
-      p(1.3, 3.1, 0.5, 0.6, EYE); p(3.0, 3.1, 0.5, 0.6, EYE);
-      p(3.9, 0.2, 1.4, 1.7, c); p(4.6, 1.1, 0.7, 0.9, wh);        // пушистый хвост
-      p(1.2, 0, 0.8, 0.7, EYE); p(3.0, 0, 0.8, 0.7, EYE);         // тёмные лапки
-    } else if (pet === 'rabbit') {
-      const c = '#e8e4dc', cd = '#cfc9bf', pk = '#e7a6b0';
-      p(1.2, 0, 3.0, 2.3, c); p(1.0, 2.1, 3.2, 2.0, c);
-      p(1.4, 3.9, 0.9, 2.3, c); p(2.9, 3.9, 0.9, 2.3, c);        // длинные уши
-      p(1.55, 4.2, 0.5, 1.8, pk); p(3.05, 4.2, 0.5, 1.8, pk);
-      p(1.6, 3.0, 0.6, 0.7, EYE); p(3.0, 3.0, 0.6, 0.7, EYE);
-      p(2.2, 2.5, 0.5, 0.4, pk);                                  // носик
-      p(4.1, 0.3, 1.0, 1.0, '#ffffff');                           // хвостик-пух
-      p(1.2, 2.1, 3.2, 0.4, cd);
-    } else if (pet === 'panda') {
-      const w = '#f2f0ea', bk = '#2a2622';
-      p(1, 0, 3.4, 2.6, w); p(0.7, 2.1, 3.9, 2.3, w);
-      p(0.7, 4.0, 1.0, 1.0, bk); p(3.6, 4.0, 1.0, 1.0, bk);      // чёрные ушки
-      p(1.2, 3.0, 1.0, 1.1, bk); p(3.0, 3.0, 1.0, 1.1, bk);      // чёрные пятна-глаза
-      p(1.5, 3.3, 0.4, 0.5, w); p(3.3, 3.3, 0.4, 0.5, w);        // блики
-      p(2.2, 2.7, 0.6, 0.4, bk);                                  // нос
-      p(0.9, 0.2, 0.9, 1.4, bk); p(3.6, 0.2, 0.9, 1.4, bk);      // чёрные лапки
+    ctx.fillRect(Math.round(x - (maxX - minX + 1) * pu * 0.35), Math.round(groundY - 1), Math.round((maxX - minX + 1) * pu * 0.7), Math.round(pu * 0.8));
+
+    for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) {
+      const c = g[idx(cx, cy)]; if (!c) continue;
+      const X = Math.round(x + (cx - centerX) * pu);
+      const Y = Math.round(groundY - (maxY - cy + 1) * pu) - bob;
+      ctx.fillStyle = c; ctx.fillRect(X, Y, pu, pu);
     }
   }
 
@@ -1637,7 +2006,30 @@ const FX = (() => {
     if (res && res.leveledTo) setTimeout(() => levelUp(res.leveledTo), 500);
   }
 
-  return { particles, toast, levelUp, rewardBurst, beep };
+  // универсальная центральная модалка (карточка на затемнении)
+  function modal(cardNode, opts) {
+    opts = opts || {};
+    const m = h('div', { class: 'levelup' + (opts.cls ? ' ' + opts.cls : '') },
+      cardNode);
+    if (opts.dismiss !== false) m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+    document.body.append(m);
+    if (opts.autoClose) setTimeout(() => { if (m.parentNode) m.remove(); }, opts.autoClose);
+    return () => { if (m.parentNode) m.remove(); };
+  }
+
+  function karmaUp(level, xp, coins) {
+    beep(600, 0.1); setTimeout(() => beep(820, 0.12), 110); setTimeout(() => beep(1000, 0.15), 240);
+    TG.haptic('success');
+    const card = h('div', { class: 'levelup-card karma-up' },
+      h('div', { class: 'lu-title', text: '✨ КАРМА' }),
+      h('div', { class: 'lu-level', text: level }),
+      h('div', { class: 'lu-sub', text: `Доброта растёт!  +${xp} XP · +${coins} ◉` }),
+    );
+    modal(card, { autoClose: 2900 });
+    particles(innerWidth / 2, innerHeight / 2, ['✨', '💚', '★', '◉'], 18);
+  }
+
+  return { particles, toast, levelUp, rewardBurst, beep, modal, karmaUp };
 })();
 
 /* ============================================================
@@ -1692,6 +2084,7 @@ const Sections = (() => {
     { id: 'calendar', glyph: '📅', label: 'Календарь',   go: openCalendar },
     { id: 'planner',  glyph: '🗺️', label: 'Планировщик', go: openPlanner },
     { id: 'habits',   glyph: '🌱', label: 'Привычки',    go: openHabits },
+    { id: 'karma',    glyph: '✨', label: 'Карма',       go: openKarmaJournal },
     { id: 'goal',     glyph: '🐷', label: 'Копилка',     go: openGoals },
     { id: 'scenery',  glyph: '🌅', label: 'Локация',     go: openScenery },
     { id: 'expenses', glyph: '💸', label: 'Расходы',     go: () => openFinance('expense') },
@@ -1746,29 +2139,68 @@ const Sections = (() => {
   function buildTasks() {
     const wrap = h('div', {});
     const input = h('input', { class: 'pix-input', type: 'text', placeholder: 'Новая задача…', maxlength: '60' });
-    const add = () => { if (input.value.trim()) { Game.addTask(input.value, 15); input.value = ''; refresh(); } };
-    wrap.append(
-      h('p', { class: 'section-hint', text: 'Выполняй задачи — получай XP и монеты.' }),
-      h('div', { class: 'add-row' }, input, h('button', { class: 'btn', text: '+', onclick: add })),
-    );
-    const list = h('div', { class: 'list' });
-    wrap.append(list);
+    const from = h('input', { class: 'pix-input time-in', type: 'time' });
+    const to = h('input', { class: 'pix-input time-in', type: 'time' });
+
+    let days = [], repeat = false;
+    const DOW = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    const dayRow = h('div', { class: 'day-chips hidden' });
+    DOW.forEach((d, i) => {
+      const wd = i + 1;
+      const chip = h('button', { class: 'day-chip', text: d });
+      chip.addEventListener('click', () => {
+        const j = days.indexOf(wd);
+        if (j >= 0) { days.splice(j, 1); chip.classList.remove('on'); }
+        else { days.push(wd); chip.classList.add('on'); }
+        TG.haptic('light');
+      });
+      dayRow.append(chip);
+    });
+    const preset = h('button', { class: 'chip-preset', text: 'Будни Пн–Пт', onclick: () => {
+      days = [1, 2, 3, 4, 5]; [...dayRow.children].forEach((c, i) => c.classList.toggle('on', i < 5));
+    } });
+    const repeatBtn = h('button', { class: 'btn btn--ghost repeat-btn', text: '🔁 Повтор по дням' });
+    repeatBtn.addEventListener('click', () => {
+      repeat = !repeat; repeatBtn.classList.toggle('active', repeat); dayRow.classList.toggle('hidden', !repeat);
+      if (!repeat) { days = []; [...dayRow.children].forEach(c => c.classList.remove('on')); }
+    });
+
+    const add = () => {
+      if (!input.value.trim()) return;
+      const time = from.value ? (to.value ? from.value + '–' + to.value : from.value) : null;
+      Game.addTask(input.value, { reward: 15, time, days: repeat ? days : null });
+      input.value = ''; from.value = ''; to.value = '';
+      repeat = false; repeatBtn.classList.remove('active'); dayRow.classList.add('hidden');
+      days = []; [...dayRow.children].forEach(c => c.classList.remove('on'));
+      refresh();
+    };
     input.addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+
+    wrap.append(
+      h('p', { class: 'section-hint', text: 'Задача может быть с временем (напр. 15:00–17:00) и повтором по дням недели — удобно для работы, тренировок и т.п.' }),
+      h('div', { class: 'add-row' }, input),
+      h('div', { class: 'add-row time-row' }, h('span', { class: 'field-lbl', text: '🕒' }), from, h('span', { class: 'dash', text: '–' }), to),
+      h('div', { class: 'add-row' }, repeatBtn, preset),
+      dayRow,
+      h('div', { class: 'add-row' }, h('button', { class: 'btn btn--wide', text: 'Добавить задачу', onclick: add })),
+    );
+    const list = h('div', { class: 'list' }); wrap.append(list);
 
     function refresh() {
       list.innerHTML = '';
       const tasks = Game.get().tasks;
       if (!tasks.length) { list.append(empty('📋', 'Пока пусто. Добавь первую задачу!')); return; }
-      // невыполненные сверху
-      [...tasks].sort((a, b) => a.done - b.done).forEach(t => {
-        const check = h('button', { class: 'row-check' + (t.done ? ' checked' : ''), text: t.done ? '✓' : '' });
-        const row = h('div', { class: 'card-row' + (t.done ? ' done' : '') },
+      const today = Game.todayKey();
+      [...tasks].sort((a, b) => Game.taskDoneOn(a, today) - Game.taskDoneOn(b, today)).forEach(t => {
+        const done = Game.taskDoneOn(t, today);
+        const check = h('button', { class: 'row-check' + (done ? ' checked' : ''), text: done ? '✓' : '' });
+        const row = h('div', { class: 'card-row' + (done ? ' done' : '') },
           check,
           h('div', { class: 'row-body' },
             h('div', { class: 'row-title', text: t.title }),
-            h('div', { class: 'row-sub', text: t.date ? '📅 ' + t.date : ' ' }),
+            taskMeta(t),
           ),
-          h('div', { class: 'row-reward', text: `+${t.reward}xp` }),
+          h('div', { class: 'row-reward', text: `+${t.reward}` }),
           h('button', { class: 'row-del', text: '🗑', onclick: () => { Game.delTask(t.id); refresh(); } }),
         );
         check.addEventListener('click', () => {
@@ -1781,6 +2213,22 @@ const Sections = (() => {
     }
     refresh();
     return wrap;
+  }
+
+  // строка с временем / повтором / датой
+  function taskMeta(t) {
+    const box = h('div', { class: 'row-sub row-meta' });
+    if (t.time) box.append(h('span', { class: 'meta-pill', text: '🕒 ' + t.time }));
+    if (t.days) {
+      const names = ['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      const label = (t.days.length === 5 && [1, 2, 3, 4, 5].every(d => t.days.includes(d))) ? 'Будни'
+        : (t.days.length === 7 ? 'Каждый день' : t.days.map(d => names[d]).join(' '));
+      box.append(h('span', { class: 'meta-pill repeat', text: '🔁 ' + label }));
+    } else if (t.date) {
+      box.append(h('span', { class: 'meta-pill', text: '📅 ' + t.date }));
+    }
+    if (!t.time && !t.days && !t.date) box.append(h('span', { text: ' ' }));
+    return box;
   }
 
   /* ============================================================
@@ -1830,36 +2278,68 @@ const Sections = (() => {
      ============================================================ */
   function openCalendar() {
     let view = new Date();
+    let selected = Game.todayKey();
     const wrap = h('div', {});
     UI.open('Календарь', '📅', wrap);
+    const grid = h('div', { class: 'cal-grid' });
+    const head = h('div', { class: 'cal-head' });
+    const dayPanel = h('div', { class: 'cal-day' });
+    wrap.append(head, grid, dayPanel);
     render();
+
     function render() {
-      wrap.innerHTML = '';
       const y = view.getFullYear(), m = view.getMonth();
-      const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-      const head = h('div', { class: 'cal-head' },
+      const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+      head.innerHTML = '';
+      head.append(
         h('button', { class: 'cal-nav', text: '‹', onclick: () => { view = new Date(y, m - 1, 1); render(); } }),
         h('div', { class: 'cal-month', text: `${months[m]} ${y}` }),
         h('button', { class: 'cal-nav', text: '›', onclick: () => { view = new Date(y, m + 1, 1); render(); } }),
       );
-      const grid = h('div', { class: 'cal-grid' });
-      ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(d => grid.append(h('div', { class: 'cal-dow', text: d })));
+      grid.innerHTML = '';
+      ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => grid.append(h('div', { class: 'cal-dow', text: d })));
       let first = new Date(y, m, 1).getDay(); first = first === 0 ? 6 : first - 1;
       for (let i = 0; i < first; i++) grid.append(h('div', { class: 'cal-cell blank' }));
       const days = new Date(y, m + 1, 0).getDate();
-      const today = new Date();
-      const tasks = Game.get().tasks;
+      const today = Game.todayKey();
       for (let d = 1; d <= days; d++) {
         const key = `${y}-${m + 1}-${d}`;
-        const has = tasks.some(t => t.date === key);
-        const isToday = today.getFullYear() === y && today.getMonth() === m && today.getDate() === d;
-        grid.append(h('div', { class: 'cal-cell' + (isToday ? ' today' : '') },
+        const count = Game.tasksForDate(key).length;
+        const cell = h('div', { class: 'cal-cell' + (key === today ? ' today' : '') + (key === selected ? ' sel' : ''), 'data-key': key },
           h('span', { text: d }),
-          has ? h('span', { class: 'cal-dot' }) : null,
-        ));
+          count ? h('span', { class: 'cal-dot' }) : null,
+        );
+        cell.addEventListener('click', () => { selected = key; TG.haptic('light'); render(); });
+        grid.append(cell);
       }
-      wrap.append(head, grid,
-        h('p', { class: 'section-hint', html: 'Точками отмечены дни с запланированными задачами. Ставь дату задачам в «Планировщике».' }));
+      renderDay();
+    }
+
+    function renderDay() {
+      dayPanel.innerHTML = '';
+      const items = Game.tasksForDate(selected);
+      const [yy, mm, dd] = selected.split('-').map(Number);
+      const label = `${dd}.${String(mm).padStart(2, '0')}.${yy}`;
+      dayPanel.append(h('div', { class: 'cal-day-title', text: '📌 ' + label + (selected === Game.todayKey() ? ' · сегодня' : '') }));
+      if (!items.length) { dayPanel.append(h('p', { class: 'section-hint', text: 'На этот день задач нет. Добавь их в «Задачах» (с датой или повтором) или в «Планировщике».' })); return; }
+      // сортировка по времени
+      items.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
+      const list = h('div', { class: 'list' });
+      items.forEach(t => {
+        const done = Game.taskDoneOn(t, selected);
+        const canCheck = selected === Game.todayKey() || !t.days;
+        const check = h('button', { class: 'row-check' + (done ? ' checked' : ''), text: done ? '✓' : '' });
+        if (canCheck) check.addEventListener('click', () => {
+          const res = Game.toggleTask(t.id);
+          if (res) FX.rewardBurst(check, t.reward, Math.ceil(t.reward / 3), res);
+          render();
+        }); else check.classList.add('locked');
+        list.append(h('div', { class: 'card-row' + (done ? ' done' : '') },
+          check,
+          h('div', { class: 'row-body' }, h('div', { class: 'row-title', text: t.title }), taskMeta(t)),
+        ));
+      });
+      dayPanel.append(list);
     }
   }
 
@@ -1871,16 +2351,21 @@ const Sections = (() => {
     UI.open('Планировщик', '🗺️', wrap);
     const title = h('input', { class: 'pix-input', type: 'text', placeholder: 'Дело…', maxlength: '50' });
     const date = h('input', { class: 'pix-input', type: 'date' });
+    const from = h('input', { class: 'pix-input time-in', type: 'time' });
+    const to = h('input', { class: 'pix-input time-in', type: 'time' });
     const add = () => {
       if (!title.value.trim()) return;
       const d = date.value ? date.value.split('-').map(Number) : null;
       const key = d ? `${d[0]}-${d[1]}-${d[2]}` : null;
-      Game.addTask(title.value, 20, key); title.value = ''; refresh();
+      const time = from.value ? (to.value ? from.value + '–' + to.value : from.value) : null;
+      Game.addTask(title.value, { reward: 20, date: key, time }); title.value = ''; from.value = ''; to.value = ''; refresh();
     };
     wrap.append(
-      h('p', { class: 'section-hint', text: 'Запланируй дела на конкретные дни.' }),
-      h('div', { class: 'add-row' }, title, h('button', { class: 'btn', text: '+', onclick: add })),
+      h('p', { class: 'section-hint', text: 'Запланируй дела на конкретные дни и время.' }),
+      h('div', { class: 'add-row' }, title),
       h('div', { class: 'add-row' }, date),
+      h('div', { class: 'add-row time-row' }, h('span', { class: 'field-lbl', text: '🕒' }), from, h('span', { class: 'dash', text: '–' }), to,
+        h('button', { class: 'btn', text: '+', onclick: add })),
     );
     const list = h('div', { class: 'list' }); wrap.append(list);
     function refresh() {
@@ -1898,7 +2383,7 @@ const Sections = (() => {
           check,
           h('div', { class: 'row-body' },
             h('div', { class: 'row-title', text: t.title }),
-            h('div', { class: 'row-sub', text: '📅 ' + t.date }),
+            taskMeta(t),
           ),
           h('button', { class: 'row-del', text: '🗑', onclick: () => { Game.delTask(t.id); refresh(); } }),
         ));
@@ -2013,6 +2498,7 @@ const Sections = (() => {
       { title: 'Пол', key: 'gender', type: 'opt', opts: [['m', '♂ парень'], ['f', '♀ девушка']] },
       { title: 'Кожа', key: 'skin', type: 'color', opts: ['#f2c9a0', '#e0a878', '#c68642', '#8d5524', '#ffdbac'] },
       { title: 'Волосы', key: 'hair', type: 'color', opts: ['#6b4a2f', '#2a2018', '#c9a24b', '#d94f4f', '#7a5cc0', '#e0e0e0'] },
+      { title: 'Причёска', key: 'hairStyle', type: 'opt', opts: [['auto', 'авто'], ['short', 'короткие'], ['messy', 'ёжик'], ['long', 'длинные'], ['ponytail', 'хвост'], ['bun', 'пучок'], ['buzz', 'бритые'], ['curly', 'кудри']] },
       { title: 'Рубашка', key: 'shirt', type: 'color', opts: ['#4a8f68', '#5b8fd0', '#d96a5a', '#e0a83f', '#7a5cc0', '#3b2a1c'] },
       { title: 'Аксессуар', key: 'accessory', type: 'opt', opts: [['none', 'нет'], ['hat', 'шляпа'], ['glasses', 'очки'], ['crown', 'корона']] },
       { title: 'Питомец', key: 'pet', type: 'opt', opts: [['none', 'нет'], ['slime', 'слайм'], ['cat', 'кот'], ['dog', 'пёс'], ['fox', 'лиса'], ['rabbit', 'заяц'], ['panda', 'панда'], ['bird', 'птица'], ['capybara', 'капибара']] },
@@ -2141,6 +2627,7 @@ const Sections = (() => {
     ['calendar','📅', 'Из календаря'],
     ['finance', '💰', 'Баланс'],
     ['goal',    '🐷', 'Копилка'],
+    ['karma',   '✨', 'Карма'],
   ];
   function openWidgetsConfig() {
     const wrap = h('div', {});
@@ -2194,13 +2681,107 @@ const Sections = (() => {
     wrap.append(group('Место', 'env', envs), group('Время суток', 'time', times));
   }
 
+  /* ============================================================
+     КАРМА — доброта в реальной жизни
+     (личный дневник добрых дел; спроектировано под расширение:
+      достижения/титулы/декор можно добавлять поверх без переписывания)
+     ============================================================ */
+  const DEED_PLACEHOLDER =
+    'Например:\n• Помог незнакомому человеку\n• Позвонил родителям\n• Поддержал друга\n• Покормил бездомную кошку\n• Сделал комплимент\n• Помог коллеге\n• Уступил место в транспорте';
+
+  function fmtDeedDate(key) {
+    const [y, m, d] = key.split('-').map(Number);
+    const M = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    return `${d} ${M[m - 1]} ${y}`;
+  }
+
+  function openKarmaIntro() {
+    const card = h('div', { class: 'levelup-card karma-intro' },
+      h('div', { class: 'ki-title', text: '✨ Новый параметр открыт — Карма' }),
+      h('div', { class: 'ki-text' },
+        h('p', { text: 'В этом мире есть сила, которую нельзя купить за монеты. Это Карма.' }),
+        h('p', { text: 'Каждый раз, когда ты совершаешь доброе дело в реальной жизни, ты можешь отметить его здесь. Маленькая помощь. Доброе слово. Поддержка друга. Забота о животных. Или любой хороший поступок, который сделал этот мир немного лучше.' }),
+        h('p', { text: 'Постепенно твоя Карма будет расти, а вместе с ней — небольшие игровые награды: опыт и монеты. Но самое главное — ты будешь видеть, сколько хорошего уже сделал.' }),
+      ),
+      h('div', { class: 'ki-warm' },
+        h('p', { text: '❤️ Если никто не заметил твоё доброе дело — не переживай. Ты всегда можешь рассказать о нём здесь, и мы искренне порадуемся за тебя.' }),
+        h('p', { text: 'Иногда даже самый маленький поступок способен изменить чей-то день. :)' }),
+      ),
+    );
+    const overlay = h('div', { class: 'levelup km-scroll' }, card);
+    card.append(h('button', {
+      class: 'btn btn--wide ki-cta', text: 'Начать путь добра',
+      onclick: () => { Game.setFlag('karmaIntro', true); overlay.remove(); FX.beep(560, 0.08); TG.haptic('light'); },
+    }));
+    document.body.append(overlay);
+  }
+
+  function openKarmaAdd() {
+    const ta = h('textarea', { class: 'pix-input karma-ta', rows: '5', maxlength: '300', placeholder: DEED_PLACEHOLDER });
+    const card = h('div', { class: 'levelup-card karma-add' },
+      h('div', { class: 'ka-title', text: '✨ Расскажи о своём добром деле' }),
+      h('div', { class: 'ka-desc', text: 'Какое доброе дело ты сегодня сделал? Не обязательно писать много — иногда даже одна строчка станет приятным воспоминанием спустя месяцы.' }),
+      ta,
+    );
+    const overlay = h('div', { class: 'levelup km-scroll' }, card);
+    const close = () => overlay.remove();
+    const save = () => {
+      const txt = ta.value.trim();
+      if (!txt) { ta.focus(); return; }
+      const leveled = Game.addDeed(txt);
+      close();
+      FX.toast('✨ <b>+1</b> к карме · доброе дело сохранено');
+      FX.particles(innerWidth / 2, innerHeight * 0.4, ['✨', '💚', '★'], 10);
+      FX.beep(560, 0.07); TG.haptic('light');
+      if (App.refreshKarma) App.refreshKarma();
+      if (leveled) setTimeout(() => FX.karmaUp(leveled.level, leveled.xp, leveled.coins), 360);
+    };
+    card.append(h('div', { class: 'ka-actions' },
+      h('button', { class: 'btn btn--ghost', text: 'Отмена', onclick: close }),
+      h('button', { class: 'btn', text: 'Сохранить', onclick: save }),
+    ));
+    document.body.append(overlay);
+    setTimeout(() => ta.focus(), 60);
+  }
+
+  function openKarmaJournal() {
+    const s = Game.get();
+    const wrap = h('div', {});
+    UI.open('Журнал добрых дел', '📖', wrap);
+    const need = Game.karmaNext();
+    wrap.append(
+      h('div', { class: 'karma-summary', text: `✨ Карма ур. ${s.karma.level} · ${s.karma.progress} / ${need} до следующего уровня` }),
+      h('p', { class: 'section-hint', text: 'Это личный дневник, а не ежедневная обязанность. Отмечай добро, которое уже есть в твоей жизни, и сохраняй эти моменты.' }),
+      h('div', { class: 'add-row' }, h('button', { class: 'btn btn--wide', text: '➕ Добавить доброе дело', onclick: openKarmaAdd })),
+    );
+    const list = h('div', { class: 'list' });
+    if (!s.deeds.length) {
+      list.append(empty('📖', 'Пока пусто. Отметь первое доброе дело — и оно останется здесь навсегда.'));
+    } else {
+      s.deeds.forEach(d => {
+        const textEl = h('div', { class: 'deed-text' }); textEl.append('💚 ' + d.text);
+        list.append(h('div', { class: 'deed-card' },
+          h('div', { class: 'deed-head' },
+            h('span', { class: 'deed-date', text: '📅 ' + fmtDeedDate(d.date) }),
+            h('button', { class: 'row-del', text: '🗑', onclick: () => { Game.delDeed(d.id); openKarmaJournal(); } }),
+          ),
+          textEl,
+        ));
+      });
+    }
+    wrap.append(list);
+    if (s.deeds.length) {
+      wrap.append(h('div', { class: 'journal-footer', text: '💛 Возможно, ты уже забыл некоторые из этих моментов. Но каждое из этих добрых дел однажды сделало чей-то день лучше. Мы бываем слишком строги к себе и забываем, сколько хорошего уже сделали. Этот журнал — напоминание, что даже маленькие поступки имеют значение.' }));
+    }
+  }
+
   /* --- утилиты разделов --- */
   function empty(glyph, text) {
     return h('div', { class: 'empty' }, h('span', { class: 'empty-glyph', text: glyph }), h('div', { text }));
   }
   function fmt(n) { return Math.round(n).toLocaleString('ru-RU'); }
 
-  return { openMenu, openExtra, openCustomize, openGoals, openAchievements, openWidgetsConfig, openScenery, openTasks, openHabits, openCalendar, openFinance };
+  return { openMenu, openExtra, openCustomize, openGoals, openAchievements, openWidgetsConfig, openScenery, openKarmaIntro, openKarmaAdd, openKarmaJournal, openTasks, openHabits, openCalendar, openFinance };
 })();
 
 
@@ -2229,6 +2810,12 @@ const App = (() => {
       avatarFrame: document.getElementById('avatarFrame'),
       speech: document.getElementById('speechBubble'),
       widgetLayer: document.getElementById('widgetLayer'),
+      karmaBar: document.getElementById('karmaBar'),
+      karmaFill: document.getElementById('karmaFill'),
+      karmaText: document.getElementById('karmaText'),
+      karmaLvl: document.getElementById('karmaLvl'),
+      karmaAddBtn: document.getElementById('karmaAddBtn'),
+      karmaJournalBtn: document.getElementById('karmaJournalBtn'),
     };
 
     // имя из Telegram, если пользователь ещё «Герой»
@@ -2271,7 +2858,10 @@ const App = (() => {
     updateAvatar();
     applyFrame();
     renderWidgets();
+    refreshKarma();
     setTimeout(() => showSpeech('Привет! Готов сделать этот день лучше? ✨', 3200), 700);
+    // первый показ механики Кармы
+    if (!Game.get().flags.karmaIntro) setTimeout(() => Sections.openKarmaIntro(), 1100);
   }
 
   /* --- верхняя панель --- */
@@ -2288,6 +2878,16 @@ const App = (() => {
     }
     updateAvatar();
     renderWidgets();
+    refreshKarma();
+  }
+
+  function refreshKarma() {
+    if (!refs.karmaFill) return;
+    const s = Game.get();
+    const need = Game.karmaNext();
+    refs.karmaFill.style.width = Math.min(100, (s.karma.progress / need) * 100) + '%';
+    refs.karmaText.textContent = `${s.karma.progress} / ${need}`;
+    refs.karmaLvl.textContent = 'ур.' + s.karma.level;
   }
 
   /* --- виджеты главного экрана --- */
@@ -2314,6 +2914,9 @@ const App = (() => {
       if (g) { value = Math.min(100, Math.round((g.saved / g.target) * 100)) + '%'; label = g.name; }
       else { value = '—'; label = 'копилка'; }
       action = () => Sections.openGoals();
+    } else if (id === 'karma') {
+      glyph = '✨'; value = `${s.karma.progress}/${Game.karmaNext()}`; label = `карма ур.${s.karma.level}`;
+      action = () => Sections.openKarmaJournal();
     } else return null;
 
     const card = h('button', { class: 'widget' },
@@ -2385,6 +2988,9 @@ const App = (() => {
     document.getElementById('customizeBtn').addEventListener('click', () => { TG.haptic('medium'); Sections.openCustomize(); });
     document.getElementById('playerCard').addEventListener('click', () => { TG.haptic('light'); Sections.openMenu(); });
 
+    if (refs.karmaAddBtn) refs.karmaAddBtn.addEventListener('click', () => { TG.haptic('medium'); Sections.openKarmaAdd(); });
+    if (refs.karmaJournalBtn) refs.karmaJournalBtn.addEventListener('click', () => { TG.haptic('light'); Sections.openKarmaJournal(); });
+
     // тап по персонажу → реплика + монетка-пасхалка изредка
     const scene = document.getElementById('sceneCanvas');
     scene.addEventListener('click', e => {
@@ -2397,7 +3003,7 @@ const App = (() => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('nav-btn--active', b.dataset.nav === id));
   }
 
-  return { init, refreshTop, updateAvatar, applyFrame, renderWidgets };
+  return { init, refreshTop, updateAvatar, applyFrame, renderWidgets, refreshKarma };
 })();
 
 // старт
