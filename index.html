@@ -434,14 +434,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    ВИДЖЕТЫ ГЛАВНОГО ЭКРАНА
    ============================================================ */
 .widget-layer {
-  position: absolute; z-index: 4;
+  position: absolute; z-index: 3;
   top: calc(var(--safe-top) + var(--tg-top) + 64px);
   left: 8px; right: 8px;
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 8px; pointer-events: none;
 }
 .widget-col { display: flex; flex-direction: column; gap: 8px; max-width: 44%; }
-.widget-col--right { align-items: flex-end; }
+/* правую колонку опускаем ниже кошелька/кнопок, чтобы не накладывались */
+.widget-col--right { align-items: flex-end; margin-top: 44px; }
 .widget {
   pointer-events: auto;
   display: flex; align-items: center; gap: 7px;
@@ -754,6 +755,7 @@ const Game = (() => {
     goals: [],     // {id, name, target, saved, done}
     achievements: [], // {id, title, glyph, date}
     widgets: ['today', 'habits', 'goal'], // виджеты на главной
+    scene: { env: 'meadow', time: 'auto' }, // локация + время суток (auto = по реальному времени)
     stats: { tasksDone: 0, habitsDone: 0, goalsDone: 0 },
     createdAt: Date.now(),
   });
@@ -766,6 +768,9 @@ const Game = (() => {
     if (!Array.isArray(s.goals)) s.goals = [];
     if (!Array.isArray(s.achievements)) s.achievements = [];
     if (!Array.isArray(s.widgets)) s.widgets = d.widgets.slice();
+    if (!s.scene) s.scene = { env: 'meadow', time: 'auto' };
+    if (!s.scene.env) s.scene.env = 'meadow';
+    if (!s.scene.time) s.scene.time = 'auto';
     if (!s.stats) s.stats = {};
     if (s.stats.tasksDone === undefined) s.stats.tasksDone = 0;
     if (s.stats.habitsDone === undefined) s.stats.habitsDone = 0;
@@ -798,6 +803,7 @@ const Game = (() => {
 
   function setName(n) { s.name = (n || 'Герой').slice(0, 16); save(); emit(); }
   function setLook(patch) { Object.assign(s.look, patch); save(); emit(); }
+  function setScene(patch) { Object.assign(s.scene, patch); save(); emit(); }
 
   /* --- задачи --- */
   function addTask(title, reward, date) {
@@ -908,7 +914,7 @@ const Game = (() => {
   function xpMax() { return xpForLevel(s.level); }
 
   return {
-    get, save, onChange, emit, reward, setName, setLook,
+    get, save, onChange, emit, reward, setName, setLook, setScene,
     addTask, toggleTask, delTask,
     addHabit, markHabit, delHabit, habitDoneToday,
     addTxn, delTxn, balance, totals,
@@ -938,145 +944,281 @@ const Scene = (() => {
   }
 
   /* ============================================================
-     ПЕРСОНАЖ — рисуется на сетке ~14×20 клеток
+     ОКРУЖЕНИЯ И ВРЕМЯ СУТОК
+     Палитры подобраны так, чтобы легко привязать к реальному времени.
      ============================================================ */
+  const PALETTES = {
+    dawn:   { sky: ['#f8cda2', '#f6bda9', '#f2cabe', '#e2d2c6', '#cfe0dd'], grass: '#6ea85c', grassD: '#4f8a48', hill: '#8fc07a', mote: 'rgba(255,240,210,0.85)', wall: '#e7cba6', wallLo: '#caa079', floor: '#b98a5a', floorD: '#9a6f45', celest: '#ffd6a0', night: false, overlay: 'rgba(255,190,150,0.10)' },
+    day:    { sky: ['#ffe0b0', '#ffd0a0', '#d8e6c0', '#bfe0d8', '#a9d7e8'], grass: '#6bab5b', grassD: '#4d8a46', hill: '#8fc27a', mote: 'rgba(255,255,220,0.75)', wall: '#ecd2a8', wallLo: '#cda67c', floor: '#bd8f5e', floorD: '#9c7146', celest: '#ffe9a0', night: false, overlay: null },
+    sunset: { sky: ['#ffb070', '#ff8f5e', '#ef7d63', '#b06a83', '#5f5790'], grass: '#5f8a52', grassD: '#3f6a40', hill: '#6f9560', mote: 'rgba(255,215,175,0.85)', wall: '#dcae86', wallLo: '#b07d58', floor: '#a5744c', floorD: '#835a3a', celest: '#ff9a5a', night: false, overlay: 'rgba(255,120,80,0.12)' },
+    night:  { sky: ['#10163a', '#171e46', '#202a58', '#2a3668', '#39466e'], grass: '#2f5a3f', grassD: '#204630', hill: '#274c39', mote: 'rgba(255,235,150,0.95)', wall: '#3a3358', wallLo: '#2a2542', floor: '#4a3a30', floorD: '#33271f', celest: '#eaf0ff', night: true, overlay: 'rgba(20,30,80,0.22)' },
+  };
+
+  function resolveTime(mode) {
+    if (mode && mode !== 'auto') return mode;
+    const hr = new Date().getHours();
+    if (hr >= 5 && hr < 8) return 'dawn';
+    if (hr >= 8 && hr < 17) return 'day';
+    if (hr >= 17 && hr < 20) return 'sunset';
+    return 'night';
+  }
+
+  function drawEnvironment(ctx, st, t) {
+    const sc = (Game.get().scene) || { env: 'meadow', time: 'auto' };
+    const tod = resolveTime(sc.time);
+    const P = PALETTES[tod] || PALETTES.day;
+    st._tod = tod;
+    if (sc.env === 'room') drawRoom(ctx, st, t, P, tod);
+    else drawMeadow(ctx, st, t, P, tod);
+    if (P.overlay) { ctx.fillStyle = P.overlay; ctx.fillRect(0, 0, st.W, st.H); }
+  }
+
+  function ensureStars(st) {
+    if (st._stars && st._starsW === st.W) return;
+    st._starsW = st.W;
+    st._stars = Array.from({ length: 26 }, () => ({
+      x: Math.random() * st.W, y: Math.random() * st.groundY * 0.8, ph: Math.random() * 6,
+    }));
+  }
+
+  function drawCelestial(ctx, st, t, P, cx, cy) {
+    if (P.night) {
+      // луна
+      ctx.fillStyle = 'rgba(240,245,255,0.35)'; ctx.fillRect(cx - 3, cy - 3, 20, 20);
+      ctx.fillStyle = P.celest; ctx.fillRect(cx, cy, 14, 14);
+      ctx.fillStyle = 'rgba(200,210,235,0.6)'; ctx.fillRect(cx + 9, cy + 2, 4, 4); ctx.fillRect(cx + 4, cy + 8, 3, 3);
+    } else {
+      const glow = 0.45 + Math.sin(t / 60) * 0.1;
+      ctx.fillStyle = `rgba(255,240,190,${glow})`; ctx.fillRect(cx - 4, cy - 4, 24, 24);
+      ctx.fillStyle = P.celest; ctx.fillRect(cx, cy, 15, 15);
+    }
+  }
+
+  function drawMeadow(ctx, st, t, P, tod) {
+    // небо
+    const bh = st.groundY / P.sky.length;
+    P.sky.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, Math.floor(i * bh), st.W, Math.ceil(bh) + 1); });
+    // светило (справа сверху)
+    drawCelestial(ctx, st, t, P, st.W - 34, 12);
+    // звёзды ночью
+    if (P.night) {
+      ensureStars(st);
+      st._stars.forEach(s => {
+        s.ph += 0.04;
+        const a = 0.4 + Math.abs(Math.sin(s.ph)) * 0.6;
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
+      });
+    } else {
+      // облака (днём)
+      st.clouds.forEach(cl => { cl.x += cl.sp; if (cl.x > st.W + 20) cl.x = -20; drawCloud(ctx, Math.round(cl.x), Math.round(cl.y), cl.s); });
+    }
+    // холмы
+    ctx.fillStyle = P.hill;
+    const hy = st.groundY - 10;
+    for (let x = 0; x < st.W; x += 24) { const hh = 8 + ((x / 24) % 2) * 4; ctx.fillRect(x, hy - hh + 10, 24, hh); }
+    ctx.fillStyle = P.grassD; ctx.fillRect(0, hy + 4, st.W, 6);
+    // земля
+    ctx.fillStyle = P.grass; ctx.fillRect(0, st.groundY, st.W, st.H - st.groundY);
+    ctx.fillStyle = shade(P.grass, -14); ctx.fillRect(0, st.groundY, st.W, 3);
+    ctx.fillStyle = P.grassD; ctx.fillRect(0, st.H - 6, st.W, 6);
+    // травинки
+    ctx.fillStyle = P.grassD;
+    for (let i = 0; i < 14; i++) {
+      const gx = (i * 9 + 4) % st.W; const sway = Math.round(Math.sin(t / 40 + i) * 1);
+      ctx.fillRect(gx + sway, st.groundY - 3, 1, 3); ctx.fillRect(gx + 3 - sway, st.groundY - 2, 1, 2);
+    }
+    // частицы / светлячки
+    st.motes.forEach(m => {
+      m.x += m.sp; m.ph += 0.05; if (m.x > st.W) m.x = 0;
+      const fy = m.y + Math.sin(m.ph) * 3;
+      if (P.night) { const a = 0.3 + Math.abs(Math.sin(m.ph)) * 0.7; ctx.fillStyle = `rgba(255,235,140,${a})`; ctx.fillRect(Math.round(m.x), Math.round(fy), 1, 1); }
+      else { ctx.fillStyle = P.mote; ctx.fillRect(Math.round(m.x), Math.round(fy), 1, 1); }
+    });
+    // бабочка (день/рассвет)
+    if (!P.night && tod !== 'sunset') {
+      st.butterflies.forEach(b => {
+        b.t += 0.02; b.x = st.W * 0.5 + Math.sin(b.t) * st.W * 0.35; b.y = st.groundY - 34 + Math.cos(b.t * 1.6) * 12;
+        const flap = Math.sin(t / 4) > 0; ctx.fillStyle = '#e88ac0';
+        if (flap) { ctx.fillRect(b.x - 2, b.y, 2, 2); ctx.fillRect(b.x + 1, b.y, 2, 2); }
+        else { ctx.fillRect(b.x - 1, b.y, 1, 2); ctx.fillRect(b.x + 1, b.y, 1, 2); }
+        ctx.fillStyle = '#2a2018'; ctx.fillRect(b.x, b.y, 1, 2);
+      });
+    }
+  }
+
+  function drawRoom(ctx, st, t, P, tod) {
+    const floorY = st.groundY;
+    // стена
+    ctx.fillStyle = P.wall; ctx.fillRect(0, 0, st.W, floorY);
+    // обои-полоски
+    ctx.fillStyle = shade(P.wall, -8);
+    for (let x = 6; x < st.W; x += 12) ctx.fillRect(x, 0, 2, floorY);
+    // плинтус
+    ctx.fillStyle = P.wallLo; ctx.fillRect(0, floorY - 6, st.W, 6);
+    // пол
+    ctx.fillStyle = P.floor; ctx.fillRect(0, floorY, st.W, st.H - floorY);
+    ctx.fillStyle = P.floorD;
+    for (let x = 0; x < st.W; x += 16) ctx.fillRect(x, floorY, 1, st.H - floorY);
+    ctx.fillRect(0, floorY, st.W, 2);
+    // окно (справа) с небом текущего времени
+    const wx = st.W - 40, wy = 12, ww = 30, wh = 30;
+    ctx.fillStyle = '#6b4a2f'; ctx.fillRect(wx - 3, wy - 3, ww + 6, wh + 6);
+    const sbh = wh / P.sky.length;
+    P.sky.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(wx, wy + Math.floor(i * sbh), ww, Math.ceil(sbh) + 1); });
+    drawCelestial(ctx, st, t, P, wx + ww - 16, wy + 4);
+    if (P.night) { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(wx + 5, wy + 6, 1, 1); ctx.fillRect(wx + 12, wy + 12, 1, 1); ctx.fillRect(wx + 20, wy + 8, 1, 1); }
+    // рама-крестовина
+    ctx.fillStyle = '#6b4a2f'; ctx.fillRect(wx + ww / 2 - 1, wy, 2, wh); ctx.fillRect(wx, wy + wh / 2 - 1, ww, 2);
+    // картина (слева)
+    ctx.fillStyle = '#6b4a2f'; ctx.fillRect(18, 16, 24, 18);
+    ctx.fillStyle = '#bfe0d8'; ctx.fillRect(21, 19, 18, 12);
+    ctx.fillStyle = '#8fc27a'; ctx.fillRect(21, 27, 18, 4);
+    ctx.fillStyle = '#f6c453'; ctx.fillRect(33, 21, 3, 3);
+    // растение у пола (слева)
+    ctx.fillStyle = '#c07a4a'; ctx.fillRect(14, floorY - 8, 8, 8);
+    ctx.fillStyle = '#4d8a46'; ctx.fillRect(15, floorY - 16, 6, 9); ctx.fillRect(12, floorY - 12, 4, 5); ctx.fillRect(20, floorY - 13, 4, 6);
+    // коврик под персонажем
+    ctx.fillStyle = shade(P.floor, 18); ctx.fillRect(st.W / 2 - 26, floorY + 6, 52, 6);
+    ctx.fillStyle = P.floorD; ctx.fillRect(st.W / 2 - 26, floorY + 8, 52, 1);
+    // пылинки
+    st.motes.forEach(m => {
+      m.x += m.sp * 0.5; m.ph += 0.04; if (m.x > st.W) m.x = 0;
+      const fy = m.y + Math.sin(m.ph) * 2;
+      ctx.fillStyle = P.night ? 'rgba(255,235,150,0.5)' : 'rgba(255,255,240,0.5)';
+      ctx.fillRect(Math.round(m.x), Math.round(fy), 1, 1);
+    });
+  }
+
+
   // feetY = y нижней точки ног; u = размер одной клетки персонажа в пикселях canvas
   function drawHero(ctx, cx, feetY, u, look, o) {
     o = o || {};
-    const breath = o.breath || 0;       // 0/1 — вдох
+    const breath = o.breath || 0;
     const blink = !!o.blink;
-    const lookDir = o.lookDir || 0;     // -1 / 0 / 1
-    const arm = o.arm || 'idle';        // idle | wave | coffee | stretch
+    const lookDir = o.lookDir || 0;
+    const arm = o.arm || 'idle';
     const female = (look.gender || 'm') === 'f';
 
     const skin = look.skin, hair = look.hair, shirt = look.shirt;
-    const skinD = shade(skin, -28), skinL = shade(skin, 18);
-    const hairD = shade(hair, -34), hairL = shade(hair, 34);
-    const shirtD = shade(shirt, -34), shirtL = shade(shirt, 26);
-    const pants = female ? '#5a4a80' : '#3a4a6a';
-    const pantsD = shade(pants, -28);
-    const shoe = '#2a1e14', shoeL = shade(shoe, 24);
-    const line = 'rgba(38,26,16,0.85)'; // мягкий контур
+    const skinD = shade(skin, -26), skinL = shade(skin, 16);
+    const hairD = shade(hair, -34), hairL = shade(hair, 36);
+    const shirtD = shade(shirt, -32), shirtL = shade(shirt, 24);
+    const pants = female ? '#5a4a80' : '#3a4a6a', pantsD = shade(pants, -26);
+    const shoe = '#2a1e14', shoeL = shade(shoe, 26);
 
     const GW = 14;
     const ox = Math.round(cx - (GW * u) / 2);
     const by = Math.round(feetY);
 
-    // px() принимает дробные клетки, но округляет до целых пикселей canvas — остаётся чётко
+    // дробные клетки, но всегда чёткие целые пиксели
     const px = (c, r, w, h, col) => {
-      const x1 = Math.round(ox + c * u);
-      const x2 = Math.round(ox + (c + w) * u);
-      const y1 = Math.round(by - (20 - r) * u);
-      const y2 = Math.round(by - (20 - (r + h)) * u);
-      ctx.fillStyle = col;
-      ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+      const x1 = Math.round(ox + c * u), x2 = Math.round(ox + (c + w) * u);
+      const y1 = Math.round(by - (20 - r) * u), y2 = Math.round(by - (20 - (r + h)) * u);
+      ctx.fillStyle = col; ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
     };
-    const bo = breath ? 0.25 : 0;               // корпус чуть поднимается на вдохе
+    const bo = breath ? 0.2 : 0;
     const T = (c, r, w, h, col) => px(c, r - bo, w, h, col);
 
-    // ---- ТЕНЬ ----
-    ctx.fillStyle = 'rgba(40,60,30,0.22)';
-    const sx = Math.round(ox + 2.5 * u), sy = Math.round(by - 0.4 * u);
-    ctx.fillRect(sx, sy, Math.round(9 * u), Math.round(1.1 * u));
+    // ТЕНЬ
+    ctx.fillStyle = 'rgba(40,60,30,0.20)';
+    ctx.fillRect(Math.round(ox + 3 * u), Math.round(by - 0.4 * u), Math.round(8 * u), Math.round(1.0 * u));
 
-    // ---- НОГИ + ОБУВЬ ----
-    px(4.2, 15, 1.9, 3.4, pants); px(4.2, 15, 0.7, 3.4, pantsD);
-    px(7.9, 15, 1.9, 3.4, pants); px(7.9, 15, 0.7, 3.4, pantsD);
-    px(4.0, 18.2, 2.2, 1.0, shoe); px(4.0, 18.2, 2.2, 0.35, shoeL);
-    px(7.7, 18.2, 2.2, 1.0, shoe); px(7.7, 18.2, 2.2, 0.35, shoeL);
-    px(6.1, 15, 0.8, 3.2, pantsD); // разрез между ног
+    // ---- НОГИ + ОБУВЬ (короткие, чиби) ----
+    px(4.6, 15.6, 1.7, 2.7, pants); px(4.6, 15.6, 0.6, 2.7, pantsD);
+    px(7.7, 15.6, 1.7, 2.7, pants); px(7.7, 15.6, 0.6, 2.7, pantsD);
+    px(4.4, 18.3, 2.0, 1.7, shoe); px(4.4, 18.3, 2.0, 0.5, shoeL);
+    px(7.5, 18.3, 2.0, 1.7, shoe); px(7.5, 18.3, 2.0, 0.5, shoeL);
 
-    // ---- РУКИ (за корпусом рисуем дальнюю) ----
-    const sleeve = shirt, sleeveD = shirtD;
+    // ---- РУКИ (короткие) ----
     if (arm === 'wave') {
-      T(2.2, 9, 1.8, 3.6, sleeve); T(2.2, 9, 0.6, 3.6, sleeveD); T(2.4, 12.2, 1.5, 0.9, skin);
-      const up = o.wavePhase > 0.5 ? 0 : 1.1;
-      T(10.2, 5.2 + up, 1.8, 3.6, sleeve); T(10.4, 4.3 + up, 1.5, 1.0, skin);
+      T(3.4, 10.4, 1.6, 3.0, shirt); T(3.4, 10.4, 0.6, 3.0, shirtD); T(3.6, 13.1, 1.3, 0.9, skin);
+      const up = o.wavePhase > 0.5 ? 0 : 1.0;
+      T(9.0, 7.0 + up, 1.6, 3.0, shirt); T(9.2, 6.2 + up, 1.3, 0.9, skin);
     } else if (arm === 'coffee') {
-      T(2.2, 9, 1.8, 3.6, sleeve); T(2.4, 12.2, 1.5, 0.9, skin);
-      T(9.8, 8.4, 1.9, 2.6, sleeve); T(10.2, 7.6, 1.5, 0.9, skin);
-      T(10.6, 5.3, 2.0, 1.9, '#c96b4a'); T(12.4, 5.6, 0.7, 1.1, '#8a4632');
-      T(10.7, 5.3, 1.8, 0.4, '#e08a63');
-      if (o.tick % 40 < 20) T(11.6, 3.4, 0.7, 0.8, 'rgba(255,255,255,0.6)');
+      T(3.4, 10.4, 1.6, 3.0, shirt); T(3.6, 13.1, 1.3, 0.9, skin);
+      T(8.8, 9.9, 1.7, 2.2, shirt); T(9.1, 9.2, 1.3, 0.9, skin);
+      T(9.4, 7.6, 1.9, 1.7, '#c96b4a'); T(11.1, 7.9, 0.7, 1.0, '#8a4632'); T(9.5, 7.6, 1.7, 0.4, '#e08a63');
+      if (o.tick % 40 < 20) T(10.3, 6.0, 0.7, 0.8, 'rgba(255,255,255,0.6)');
     } else if (arm === 'stretch') {
-      T(2.2, 4.2, 1.8, 4.8, sleeve); T(2.4, 3.2, 1.5, 1.1, skin);
-      T(10.0, 4.2, 1.8, 4.8, sleeve); T(10.3, 3.2, 1.5, 1.1, skin);
+      T(3.3, 6.2, 1.6, 4.2, shirt); T(3.5, 5.3, 1.3, 1.0, skin);
+      T(9.1, 6.2, 1.6, 4.2, shirt); T(9.3, 5.3, 1.3, 1.0, skin);
     } else {
-      T(2.3, 9, 1.7, 4.6, sleeve); T(2.3, 9, 0.6, 4.6, sleeveD); T(2.5, 13.2, 1.4, 0.9, skin);
-      T(10.0, 9, 1.7, 4.6, sleeve); T(10.2, 13.2, 1.4, 0.9, skin);
+      T(3.4, 10.4, 1.5, 3.6, shirt); T(3.4, 10.4, 0.6, 3.6, shirtD); T(3.6, 13.6, 1.2, 0.9, skin);
+      T(9.1, 10.4, 1.5, 3.6, shirt); T(9.4, 13.6, 1.2, 0.9, skin);
     }
 
-    // ---- ТОРС / РУБАШКА ----
-    T(3.1, 9, 7.8, 6.1, shirt);
-    T(3.1, 9, 7.8, 0.7, shirtL);      // блик сверху
-    T(3.1, 13.7, 7.8, 0.9, shirtD);   // тень снизу
-    T(3.1, 9, 0.7, 6.1, shirtD);      // левый край
-    T(10.2, 9, 0.7, 6.1, shirtD);     // правый край
-    if (female) { T(5.4, 12.2, 3.2, 1.4, shirtL); } // лёгкая талия-блик
+    // ---- ТЕЛО (компактное) ----
+    T(4.2, 10.0, 5.6, 5.6, shirt);
+    T(4.2, 10.0, 5.6, 0.7, shirtL);
+    T(4.2, 14.7, 5.6, 0.9, shirtD);
+    T(4.2, 10.0, 0.7, 5.6, shirtD);
+    T(9.1, 10.0, 0.7, 5.6, shirtD);
+    if (female) T(5.6, 12.6, 2.8, 1.2, shirtL);
     // воротник
-    T(5.4, 8.7, 3.2, 0.7, shirtD);
-    T(6.2, 8.7, 1.6, 0.6, skinD);
+    T(5.6, 9.7, 2.8, 0.7, shirtD); T(6.3, 9.7, 1.4, 0.6, skinD);
 
     // ---- ШЕЯ ----
-    T(6.2, 8.1, 1.6, 0.9, skinD);
+    T(6.3, 9.1, 1.4, 0.8, skinD);
 
-    // ---- ГОЛОВА ----
-    T(4.2, 2.9, 5.6, 5.6, skin);
-    T(4.2, 2.9, 5.6, 0.6, skinL);     // лоб-блик
-    T(4.2, 2.9, 0.7, 5.6, skinD);     // левая тень
-    T(9.1, 2.9, 0.7, 5.6, skinD);     // правая тень
-    T(4.2, 8.0, 5.6, 0.5, skinD);     // подбородок
-    // уши
-    T(3.7, 5.2, 0.6, 1.2, skin); T(9.7, 5.2, 0.6, 1.2, skin);
+    // ---- ГОЛОВА (крупная, округлая) ----
+    T(3.5, 2.2, 7.0, 6.6, skin);       // основа
+    T(3.9, 1.6, 6.2, 0.7, skin);       // макушка
+    T(4.4, 8.5, 5.2, 0.7, skin);       // округлый подбородок
+    T(3.9, 1.7, 6.2, 0.6, skinL);      // блик на лбу
+    T(3.5, 2.2, 0.7, 6.3, skinD);      // левая тень
+    T(9.8, 2.2, 0.7, 6.3, skinD);      // правая тень
+    T(4.4, 8.5, 5.2, 0.5, skinD);      // тень подбородка
+    // ушки
+    T(3.1, 5.4, 0.7, 1.4, skin); T(10.2, 5.4, 0.7, 1.4, skin);
+    T(3.1, 5.4, 0.5, 1.4, skinD); T(10.4, 5.4, 0.5, 1.4, skinD);
     // щёчки
-    ctx.globalAlpha = 0.5; T(4.6, 6.2, 1.0, 0.8, '#e8907e'); T(8.4, 6.2, 1.0, 0.8, '#e8907e'); ctx.globalAlpha = 1;
+    ctx.globalAlpha = 0.55; T(4.5, 6.6, 1.2, 0.9, '#e8907e'); T(8.3, 6.6, 1.2, 0.9, '#e8907e'); ctx.globalAlpha = 1;
     // нос
-    T(6.7, 6.2, 0.6, 0.8, skinD);
+    T(6.7, 6.6, 0.6, 0.7, skinD);
 
-    // ---- ГЛАЗА ----
+    // ---- ГЛАЗА (крупные, милые) ----
     const e = lookDir;
     if (blink) {
-      T(5.0, 6.0, 1.2, 0.35, line); T(7.8, 6.0, 1.2, 0.35, line);
+      T(4.7, 5.7, 1.6, 0.4, shade(skin, -55)); T(7.7, 5.7, 1.6, 0.4, shade(skin, -55));
     } else {
-      T(5.0, 5.2, 1.2, 1.4, '#fff'); T(7.8, 5.2, 1.2, 1.4, '#fff');
-      const pupX = e > 0 ? 0.45 : (e < 0 ? -0.1 : 0.2);
-      T(5.0 + pupX, 5.5, 0.7, 0.9, '#2a2018'); T(7.8 + pupX, 5.5, 0.7, 0.9, '#2a2018');
-      // блик в глазах
-      T(5.15 + pupX, 5.5, 0.25, 0.3, 'rgba(255,255,255,0.9)');
-      T(7.95 + pupX, 5.5, 0.25, 0.3, 'rgba(255,255,255,0.9)');
-      if (female) { T(4.85, 4.95, 1.4, 0.3, line); T(7.65, 4.95, 1.4, 0.3, line); } // ресницы
+      T(4.7, 4.9, 1.6, 1.9, '#fff'); T(7.7, 4.9, 1.6, 1.9, '#fff');
+      const pupX = e > 0 ? 0.55 : (e < 0 ? -0.05 : 0.25);
+      T(4.9 + pupX, 5.2, 0.95, 1.3, '#3a2a20'); T(7.9 + pupX, 5.2, 0.95, 1.3, '#3a2a20');
+      T(5.05 + pupX, 5.35, 0.35, 0.45, 'rgba(255,255,255,0.95)');
+      T(8.05 + pupX, 5.35, 0.35, 0.45, 'rgba(255,255,255,0.95)');
+      if (female) { T(4.55, 4.6, 1.9, 0.35, shade(skin, -60)); T(7.55, 4.6, 1.9, 0.35, shade(skin, -60)); }
     }
-    // рот — лёгкая улыбка
-    T(6.2, 7.2, 1.6, 0.4, shade(skin, -55));
-    T(6.5, 7.5, 1.0, 0.3, '#c96b6b');
+    // рот
+    T(6.3, 7.7, 1.4, 0.4, shade(skin, -55)); T(6.6, 8.0, 0.8, 0.3, '#c96b6b');
 
     // ---- ВОЛОСЫ ----
     if (female) {
-      // чёлка + длинные пряди по бокам до плеч
-      T(3.9, 2.2, 6.2, 1.5, hair); T(3.9, 2.2, 6.2, 0.5, hairL);
-      T(3.7, 2.6, 1.1, 6.2, hair); T(9.6, 2.6, 1.1, 6.2, hair);
-      T(3.7, 2.6, 0.5, 6.2, hairD); T(10.2, 2.6, 0.5, 6.2, hairD);
-      T(4.2, 3.4, 1.2, 0.7, hair);  // чёлка слева
-      T(8.6, 3.4, 1.2, 0.7, hair);  // чёлка справа
+      T(3.4, 1.3, 7.2, 1.8, hair); T(3.4, 1.3, 7.2, 0.5, hairL);
+      T(3.2, 1.9, 1.2, 7.2, hair); T(10.2, 1.9, 1.2, 7.2, hair);   // длинные пряди
+      T(3.2, 1.9, 0.5, 7.2, hairD); T(10.9, 1.9, 0.5, 7.2, hairD);
+      T(3.9, 2.6, 1.4, 1.2, hair); T(9.1, 2.6, 1.4, 1.2, hair);    // чёлка по бокам
+      T(6.2, 2.5, 1.6, 0.7, hair);                                  // серединка чёлки
     } else {
-      T(3.9, 2.2, 6.2, 1.6, hair); T(3.9, 2.2, 6.2, 0.5, hairL);
-      T(3.8, 2.8, 0.9, 2.6, hair); T(9.5, 2.8, 0.9, 2.6, hair);
-      T(3.8, 2.8, 0.9, 2.6, hairD);
-      T(4.4, 3.6, 1.4, 0.6, hair); // чёлка
+      T(3.4, 1.3, 7.2, 1.9, hair); T(3.4, 1.3, 7.2, 0.5, hairL);
+      T(3.3, 1.9, 1.0, 3.0, hair); T(10.1, 1.9, 1.0, 3.0, hair);
+      T(3.3, 1.9, 1.0, 3.0, hairD);
+      T(4.0, 3.0, 1.6, 0.7, hair); T(8.4, 3.0, 1.6, 0.7, hair);    // вихор-чёлка
+      T(6.0, 2.9, 2.0, 0.6, hair);
     }
 
     // ---- АКСЕССУАРЫ ----
     if (look.accessory === 'hat') {
-      T(3.4, 1.1, 7.2, 1.1, '#8a4632'); T(3.4, 1.9, 7.2, 0.4, '#6e3626');
-      T(4.4, 0.1, 5.2, 1.1, '#a85a3f'); T(4.4, 0.1, 5.2, 0.4, '#c06a4a');
+      T(3.2, 0.7, 7.6, 1.2, '#8a4632'); T(3.2, 1.6, 7.6, 0.4, '#6e3626');
+      T(4.4, -0.4, 5.2, 1.2, '#a85a3f'); T(4.4, -0.4, 5.2, 0.4, '#c06a4a');
     } else if (look.accessory === 'crown') {
-      T(4.2, 1.2, 5.6, 1.0, '#f6c453'); T(4.2, 1.2, 5.6, 0.35, '#ffe08a');
-      T(4.3, 0.3, 0.9, 1.0, '#f6c453'); T(6.6, 0.1, 0.9, 1.2, '#f6c453'); T(8.9, 0.3, 0.9, 1.0, '#f6c453');
-      T(6.7, 0.4, 0.7, 0.7, '#e0524a'); // камень
+      T(4.2, 0.7, 5.6, 1.1, '#f6c453'); T(4.2, 0.7, 5.6, 0.35, '#ffe08a');
+      T(4.3, -0.3, 0.9, 1.1, '#f6c453'); T(6.6, -0.5, 0.9, 1.3, '#f6c453'); T(8.9, -0.3, 0.9, 1.1, '#f6c453');
+      T(6.7, 0.0, 0.7, 0.7, '#e0524a');
     } else if (look.accessory === 'glasses') {
-      T(4.7, 5.1, 1.7, 1.3, 'rgba(40,32,24,0.9)'); T(7.6, 5.1, 1.7, 1.3, 'rgba(40,32,24,0.9)');
-      T(4.95, 5.35, 1.2, 0.8, 'rgba(150,200,230,0.45)'); T(7.85, 5.35, 1.2, 0.8, 'rgba(150,200,230,0.45)');
-      T(6.4, 5.4, 1.2, 0.3, '#2a2018');
+      T(4.5, 4.7, 1.9, 1.6, 'rgba(40,32,24,0.92)'); T(7.5, 4.7, 1.9, 1.6, 'rgba(40,32,24,0.92)');
+      T(4.75, 4.95, 1.4, 1.0, 'rgba(150,200,230,0.4)'); T(7.75, 4.95, 1.4, 1.0, 'rgba(150,200,230,0.4)');
+      T(6.4, 5.1, 1.1, 0.35, '#2a2018');
     }
   }
 
@@ -1085,32 +1227,77 @@ const Scene = (() => {
     if (pet === 'none') return;
     const hop = Math.abs(Math.sin(tick / 22)) * 3;
     const y = groundY - hop;
-    ctx.fillStyle = 'rgba(40,60,30,0.2)';
-    ctx.fillRect(x, groundY - 1, 8 * u * 0.4, u);
-    const p = (c, r, w, h, col) => { ctx.fillStyle = col; ctx.fillRect(x + c * u, y - r * u, w * u, h * u); };
+    ctx.fillStyle = 'rgba(40,60,30,0.20)';
+    ctx.fillRect(Math.round(x), Math.round(groundY - 1), Math.round(4.4 * u), Math.round(u));
+    const p = (c, r, w, h, col) => {
+      ctx.fillStyle = col;
+      ctx.fillRect(Math.round(x + c * u), Math.round(y - r * u), Math.round(w * u), Math.round(h * u));
+    };
+    const EYE = '#2a2018';
     if (pet === 'slime') {
-      p(0, 3, 5, 3, '#6bcf8a'); p(0, 3, 5, 1, '#8fe0a6'); p(1, 4, 3, 1, '#4fae6c');
-      p(1, 5, 1, 1, '#2a2018'); p(3, 5, 1, 1, '#2a2018');
+      p(0.5, 0, 4.5, 3, '#6bcf8a'); p(1, 3, 3.5, 0.9, '#6bcf8a');
+      p(1, 2.2, 1.1, 0.9, '#9fe6b4'); p(0.5, 0, 4.5, 0.5, '#4fae6c');
+      p(1.6, 1.1, 0.8, 1.0, EYE); p(3.1, 1.1, 0.8, 1.0, EYE);
+      p(2.1, 0.6, 1.3, 0.3, '#2a7a4a');
     } else if (pet === 'cat') {
-      p(0, 3, 5, 3, '#e0a86a'); p(0, 3, 5, 1, '#efc089');
-      p(0, 6, 1, 1, '#e0a86a'); p(4, 6, 1, 1, '#e0a86a'); // ушки
-      p(1, 5, 1, 1, '#2a2018'); p(3, 5, 1, 1, '#2a2018');
-      p(5, 4, 1, 1, '#e0a86a'); // хвостик
+      const c = '#e6ab6a', cd = '#c98a52';
+      p(1, 0, 3.2, 2.4, c); p(0.6, 2.2, 3.9, 2.3, c);
+      p(0.8, 4.2, 1.0, 1.1, c); p(3.3, 4.2, 1.0, 1.1, c);       // ушки
+      p(1.0, 4.4, 0.5, 0.6, cd); p(3.5, 4.4, 0.5, 0.6, cd);
+      p(4.1, 0.3, 1.0, 1.9, c); p(4.1, 1.8, 1.0, 0.5, cd);      // хвост
+      p(1.4, 3.0, 0.7, 0.9, EYE); p(3.0, 3.0, 0.7, 0.9, EYE);
+      p(2.2, 2.6, 0.6, 0.4, '#b06a5a');                          // носик
+      p(0.9, 3.2, 0.4, 0.5, cd); p(3.8, 3.2, 0.4, 0.5, cd);      // полоски-щёки
     } else if (pet === 'bird') {
-      p(0, 3, 4, 2, '#6fb6e0'); p(0, 3, 4, 1, '#9fd0ee');
-      p(3, 4, 2, 1, '#f6c453'); p(1, 4, 1, 1, '#2a2018');
+      const b = '#6fb6e0', bd = '#4f96c4';
+      p(0.6, 0.2, 3.6, 2.8, b); p(0.6, 2.6, 3.6, 0.5, bd);
+      p(1.0, 0.8, 1.6, 1.4, bd);                                 // крыло
+      p(3.9, 1.6, 1.1, 0.8, '#f6c453');                          // клюв
+      p(2.6, 2.0, 0.7, 0.8, EYE);
+      p(0.7, 3.0, 3.4, 0.5, '#9fd0ee');                          // хохолок-блик
     } else if (pet === 'capybara') {
-      // капибара — крупный тёпло-коричневый тихоня
-      const body = '#a9784f', bodyL = '#c0916a', bodyD = '#8a5f3c', nose = '#6e4a30';
-      p(0, 3, 8, 3, body);            // тело
-      p(0, 3, 8, 1, bodyL);           // спинка-блик
-      p(0, 3, 0.8, 3, bodyD);         // тень слева
-      p(6.4, 3.8, 2, 2.2, body);      // приподнятая морда
-      p(6.4, 3.8, 2, 0.6, bodyL);
-      p(8, 3.2, 0.9, 1.1, nose);      // нос
-      p(6.6, 5.0, 0.8, 0.7, body); p(7.6, 5.0, 0.8, 0.7, body); // ушки
-      p(7.1, 3.6, 0.7, 0.7, '#2a2018'); // глаз
-      p(1, 0.9, 1.5, 0.9, bodyD); p(4, 0.9, 1.5, 0.9, bodyD);   // лапки
+      const b = '#a9784f', bl = '#c0916a', bd = '#8a5f3c', ns = '#6e4a30';
+      p(0, 0, 8, 2.8, b); p(0, 2.4, 8, 0.5, bl); p(0, 0, 0.7, 2.8, bd);
+      p(6.2, 1.0, 2.0, 2.0, b); p(6.2, 2.5, 2.0, 0.5, bl);       // морда
+      p(8, 1.6, 0.9, 1.0, ns); p(6.5, 2.9, 0.8, 0.7, b); p(7.5, 2.9, 0.8, 0.7, b); // ушки
+      p(7.0, 1.9, 0.7, 0.7, EYE);
+      p(1, 0, 1.4, 0.8, bd); p(4, 0, 1.4, 0.8, bd);              // лапки
+    } else if (pet === 'dog') {
+      const c = '#c79a6a', cd = '#a97f4f', mu = '#e6cc9e';
+      p(1, 0, 3.2, 2.6, c); p(0.5, 2.2, 3.8, 2.4, c);
+      p(0.1, 3.2, 1.0, 1.8, cd); p(3.9, 3.2, 1.0, 1.8, cd);      // висячие ушки
+      p(1.3, 2.1, 2.2, 1.2, mu);                                  // мордочка
+      p(2.0, 2.7, 0.8, 0.6, EYE);                                 // нос
+      p(1.3, 3.4, 0.6, 0.7, EYE); p(3.0, 3.4, 0.6, 0.7, EYE);     // глаза
+      p(4.1, 0.5, 1.0, 1.3, c); p(4.1, 1.6, 1.0, 0.4, cd);        // хвост
+      p(1.2, 0, 0.9, 0.7, cd); p(3.0, 0, 0.9, 0.7, cd);           // лапки
+    } else if (pet === 'fox') {
+      const c = '#e07a3f', wh = '#f5e6d0';
+      p(1, 0, 3.2, 2.3, c); p(0.6, 2.1, 3.6, 2.2, c);
+      p(0.6, 3.9, 1.0, 1.3, c); p(0.6, 4.8, 1.0, 0.5, EYE);      // ушки с чёрным
+      p(3.2, 3.9, 1.0, 1.3, c); p(3.2, 4.8, 1.0, 0.5, EYE);
+      p(1.3, 2.0, 2.2, 1.3, wh);                                  // белая мордочка
+      p(2.1, 2.7, 0.6, 0.5, EYE);
+      p(1.3, 3.1, 0.5, 0.6, EYE); p(3.0, 3.1, 0.5, 0.6, EYE);
+      p(3.9, 0.2, 1.4, 1.7, c); p(4.6, 1.1, 0.7, 0.9, wh);        // пушистый хвост
+      p(1.2, 0, 0.8, 0.7, EYE); p(3.0, 0, 0.8, 0.7, EYE);         // тёмные лапки
+    } else if (pet === 'rabbit') {
+      const c = '#e8e4dc', cd = '#cfc9bf', pk = '#e7a6b0';
+      p(1.2, 0, 3.0, 2.3, c); p(1.0, 2.1, 3.2, 2.0, c);
+      p(1.4, 3.9, 0.9, 2.3, c); p(2.9, 3.9, 0.9, 2.3, c);        // длинные уши
+      p(1.55, 4.2, 0.5, 1.8, pk); p(3.05, 4.2, 0.5, 1.8, pk);
+      p(1.6, 3.0, 0.6, 0.7, EYE); p(3.0, 3.0, 0.6, 0.7, EYE);
+      p(2.2, 2.5, 0.5, 0.4, pk);                                  // носик
+      p(4.1, 0.3, 1.0, 1.0, '#ffffff');                           // хвостик-пух
+      p(1.2, 2.1, 3.2, 0.4, cd);
+    } else if (pet === 'panda') {
+      const w = '#f2f0ea', bk = '#2a2622';
+      p(1, 0, 3.4, 2.6, w); p(0.7, 2.1, 3.9, 2.3, w);
+      p(0.7, 4.0, 1.0, 1.0, bk); p(3.6, 4.0, 1.0, 1.0, bk);      // чёрные ушки
+      p(1.2, 3.0, 1.0, 1.1, bk); p(3.0, 3.0, 1.0, 1.1, bk);      // чёрные пятна-глаза
+      p(1.5, 3.3, 0.4, 0.5, w); p(3.3, 3.3, 0.4, 0.5, w);        // блики
+      p(2.2, 2.7, 0.6, 0.4, bk);                                  // нос
+      p(0.9, 0.2, 0.9, 1.4, bk); p(3.6, 0.2, 0.9, 1.4, bk);      // чёрные лапки
     }
   }
 
@@ -1178,73 +1365,8 @@ const Scene = (() => {
     st.tick++;
     const t = st.tick;
 
-    // --- НЕБО (градиентные полосы) ---
-    const bands = ['#ffe0b0', '#ffd0a0', '#d8e6c0', '#bfe0d8', '#a9d7e8'];
-    const bh = st.groundY / bands.length;
-    bands.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, Math.floor(i * bh), st.W, Math.ceil(bh) + 1); });
-
-    // --- СОЛНЦE ---
-    const sunGlow = 0.5 + Math.sin(t / 60) * 0.1;
-    ctx.fillStyle = `rgba(255,240,190,${sunGlow})`;
-    ctx.fillRect(st.W - 34, 12, 20, 20);
-    ctx.fillStyle = '#ffe9a0';
-    ctx.fillRect(st.W - 30, 16, 12, 12);
-
-    // --- ОБЛАКА ---
-    st.clouds.forEach(cl => {
-      cl.x += cl.sp;
-      if (cl.x > st.W + 20) cl.x = -20;
-      drawCloud(ctx, Math.round(cl.x), Math.round(cl.y), cl.s);
-    });
-
-    // --- ДАЛЬНИЕ ХОЛМЫ ---
-    ctx.fillStyle = '#8fc27a';
-    const hy = st.groundY - 10;
-    for (let x = 0; x < st.W; x += 24) {
-      const hh = 8 + ((x / 24) % 2) * 4;
-      ctx.fillRect(x, hy - hh + 10, 24, hh);
-    }
-    // мягкая линия холмов
-    ctx.fillStyle = '#7ab268';
-    ctx.fillRect(0, hy + 4, st.W, 6);
-
-    // --- ЗЕМЛЯ ---
-    ctx.fillStyle = '#6bab5b';
-    ctx.fillRect(0, st.groundY, st.W, st.H - st.groundY);
-    ctx.fillStyle = '#5c9a4d';
-    ctx.fillRect(0, st.groundY, st.W, 3);
-    ctx.fillStyle = '#4d8a46';
-    ctx.fillRect(0, st.H - 6, st.W, 6);
-
-    // травинки колышутся
-    ctx.fillStyle = '#4d8a46';
-    for (let i = 0; i < 14; i++) {
-      const gx = (i * 9 + 4) % st.W;
-      const sway = Math.round(Math.sin(t / 40 + i) * 1);
-      ctx.fillRect(gx + sway, st.groundY - 3, 1, 3);
-      ctx.fillRect(gx + 3 - sway, st.groundY - 2, 1, 2);
-    }
-
-    // --- частицы света / пыльца ---
-    st.motes.forEach(m => {
-      m.x += m.sp; m.ph += 0.05;
-      if (m.x > st.W) m.x = 0;
-      const fy = m.y + Math.sin(m.ph) * 3;
-      ctx.fillStyle = 'rgba(255,255,220,0.7)';
-      ctx.fillRect(Math.round(m.x), Math.round(fy), 1, 1);
-    });
-
-    // --- бабочка ---
-    st.butterflies.forEach(b => {
-      b.t += 0.02;
-      b.x = st.W * 0.5 + Math.sin(b.t) * st.W * 0.35;
-      b.y = st.groundY - 34 + Math.cos(b.t * 1.6) * 12;
-      const flap = Math.sin(t / 4) > 0;
-      ctx.fillStyle = '#e88ac0';
-      if (flap) { ctx.fillRect(b.x - 2, b.y, 2, 2); ctx.fillRect(b.x + 1, b.y, 2, 2); }
-      else { ctx.fillRect(b.x - 1, b.y, 1, 2); ctx.fillRect(b.x + 1, b.y, 1, 2); }
-      ctx.fillStyle = '#2a2018'; ctx.fillRect(b.x, b.y, 1, 2);
-    });
+    // --- ФОН: локация + время суток ---
+    drawEnvironment(ctx, st, t);
 
     // --- ПЕРСОНАЖ ---
     const look = Game.get().look;
@@ -1420,7 +1542,7 @@ const Scene = (() => {
     initHub, stopHub, resumeHub,
     initLoading, stopLoading,
     renderAvatar, renderCustomPreview, stopCustomPreview,
-    drawHero, drawPet,
+    drawHero, drawPet, drawEnvironment,
   };
 })();
 
@@ -1571,6 +1693,7 @@ const Sections = (() => {
     { id: 'planner',  glyph: '🗺️', label: 'Планировщик', go: openPlanner },
     { id: 'habits',   glyph: '🌱', label: 'Привычки',    go: openHabits },
     { id: 'goal',     glyph: '🐷', label: 'Копилка',     go: openGoals },
+    { id: 'scenery',  glyph: '🌅', label: 'Локация',     go: openScenery },
     { id: 'expenses', glyph: '💸', label: 'Расходы',     go: () => openFinance('expense') },
     { id: 'income',   glyph: '💰', label: 'Доходы',      go: () => openFinance('income') },
     { id: 'achievements', glyph: '🏆', label: 'Достижения', go: openAchievements },
@@ -1892,7 +2015,7 @@ const Sections = (() => {
       { title: 'Волосы', key: 'hair', type: 'color', opts: ['#6b4a2f', '#2a2018', '#c9a24b', '#d94f4f', '#7a5cc0', '#e0e0e0'] },
       { title: 'Рубашка', key: 'shirt', type: 'color', opts: ['#4a8f68', '#5b8fd0', '#d96a5a', '#e0a83f', '#7a5cc0', '#3b2a1c'] },
       { title: 'Аксессуар', key: 'accessory', type: 'opt', opts: [['none', 'нет'], ['hat', 'шляпа'], ['glasses', 'очки'], ['crown', 'корона']] },
-      { title: 'Питомец', key: 'pet', type: 'opt', opts: [['none', 'нет'], ['slime', 'слайм'], ['cat', 'кот'], ['bird', 'птица'], ['capybara', 'капибара']] },
+      { title: 'Питомец', key: 'pet', type: 'opt', opts: [['none', 'нет'], ['slime', 'слайм'], ['cat', 'кот'], ['dog', 'пёс'], ['fox', 'лиса'], ['rabbit', 'заяц'], ['panda', 'панда'], ['bird', 'птица'], ['capybara', 'капибара']] },
       { title: 'Рамка профиля', key: 'frame', type: 'opt', opts: [['gold', 'золото'], ['wood', 'дерево'], ['leaf', 'листья'], ['royal', 'король']] },
     ];
 
@@ -2043,13 +2166,41 @@ const Sections = (() => {
     wrap.append(list);
   }
 
+  /* ============================================================
+     ЛОКАЦИЯ И ВРЕМЯ СУТОК
+     ============================================================ */
+  function openScenery() {
+    const wrap = h('div', {});
+    UI.open('Локация', '🌅', wrap);
+    wrap.append(h('p', { class: 'section-hint', text: 'Выбери, где находится персонаж и какое время суток. «Авто» подстраивается под твоё реальное время — утро, день, закат, ночь.' }));
+
+    const envs = [['meadow', '🌳 Поляна'], ['room', '🏠 Комната']];
+    const times = [['auto', '⏱ Авто'], ['dawn', '🌅 Рассвет'], ['day', '☀️ День'], ['sunset', '🌇 Закат'], ['night', '🌙 Ночь']];
+
+    function group(title, key, opts) {
+      const box = h('div', { class: 'swatches' });
+      opts.forEach(([val, lbl]) => {
+        const sel = (Game.get().scene[key] || (key === 'time' ? 'auto' : 'meadow')) === val;
+        const b = h('button', { class: 'swatch opt' + (sel ? ' selected' : ''), text: lbl });
+        b.addEventListener('click', () => {
+          Game.setScene({ [key]: val });
+          [...box.children].forEach(c => c.classList.remove('selected'));
+          b.classList.add('selected'); TG.haptic('light');
+        });
+        box.append(b);
+      });
+      return h('div', { class: 'custom-group' }, h('h4', { text: title }), box);
+    }
+    wrap.append(group('Место', 'env', envs), group('Время суток', 'time', times));
+  }
+
   /* --- утилиты разделов --- */
   function empty(glyph, text) {
     return h('div', { class: 'empty' }, h('span', { class: 'empty-glyph', text: glyph }), h('div', { text }));
   }
   function fmt(n) { return Math.round(n).toLocaleString('ru-RU'); }
 
-  return { openMenu, openExtra, openCustomize, openGoals, openAchievements, openWidgetsConfig, openTasks, openHabits, openCalendar, openFinance };
+  return { openMenu, openExtra, openCustomize, openGoals, openAchievements, openWidgetsConfig, openScenery, openTasks, openHabits, openCalendar, openFinance };
 })();
 
 
