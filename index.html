@@ -469,14 +469,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
    ============================================================ */
 .widget-layer {
   position: absolute; z-index: 3;
-  top: calc(var(--safe-top) + var(--tg-top) + 92px);
-  left: 8px; right: 8px;
+  top: calc(var(--safe-top) + var(--tg-top) + 96px);
+  left: 10px; right: 10px;
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 8px; pointer-events: none;
+  gap: 14px; pointer-events: none;
 }
 /* align-items: flex-start — чтобы карточки были по содержимому, а не растягивались в пустые полосы */
-.widget-col { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 44%; }
-.widget-col--right { align-items: flex-end; }
+.widget-col { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; max-width: 44%; }
+.widget-col--right { align-items: flex-end; margin-top: 8px; }
 .widget {
   pointer-events: auto;
   display: flex; align-items: center; gap: 7px;
@@ -526,6 +526,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 /* достижения */
 .ach-glyph { font-size: 28px; width: 40px; text-align: center; flex-shrink: 0; }
+.ach-row.ach-locked { opacity: 0.55; filter: grayscale(0.5); }
+.ach-done { font-size: 20px; font-weight: 700; color: var(--xp-deep); flex-shrink: 0; }
 
 /* переключатель виджета */
 .wtoggle {
@@ -985,6 +987,23 @@ const I18N = (() => {
     'Прогресс сбросится безвозвратно. Продолжить?': 'Progress will be reset permanently. Continue?',
     'Прогресс, кастомизация и журнал хранятся на этом устройстве.': 'Progress, customization and journal are stored on this device.',
     'Приятная мелочь': 'A little joy',
+    // виджеты (нижний регистр)
+    'привычки': 'habits',
+    // локация парк
+    '🌲 Парк': '🌲 Park',
+    // достижения (каталог)
+    'Первый шаг': 'First step', 'Выполни первую задачу': 'Complete your first task',
+    'Продуктивность': 'Productive', 'Выполни 10 задач': 'Complete 10 tasks',
+    'Новая привычка': 'New habit', 'Отметь привычку': 'Check a habit',
+    'Рост': 'Growth', 'Достигни 2 уровня': 'Reach level 2',
+    'Мечта сбылась': 'Dream come true', 'Заверши цель в копилке': 'Finish a savings goal',
+    'Доброе сердце': 'Kind heart', 'Соверши доброе дело': 'Do a good deed',
+    'Разблокировано': 'Unlocked',
+    // заглушки shop/quests
+    'Магазин скоро откроется': 'Shop opening soon',
+    'Здесь можно будет тратить монеты на наряды, питомцев и украшения.': 'Here you’ll spend coins on outfits, pets and decorations.',
+    'Квесты скоро появятся': 'Quests coming soon',
+    'Задания с особыми наградами за их выполнение.': 'Missions with special rewards for completing them.',
   };
 
   // локализованные массивы (собираются в строки в коде, а не через h())
@@ -1352,6 +1371,7 @@ const Scene = (() => {
     const P = PALETTES[tod] || PALETTES.day;
     st._tod = tod;
     if (sc.env === 'room') drawRoom(ctx, st, t, P, tod);
+    else if (sc.env === 'park') drawPark(ctx, st, t, P, tod);
     else drawMeadow(ctx, st, t, P, tod);
     if (P.overlay) { ctx.fillStyle = P.overlay; ctx.fillRect(0, 0, st.W, st.H); }
   }
@@ -1561,6 +1581,78 @@ const Scene = (() => {
     });
   }
 
+  function drawPark(ctx, st, t, P, tod) {
+    const W = st.W, H = st.H, gy = st.groundY, night = P.night;
+    const rc = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+
+    // небо
+    const bh = gy / P.sky.length;
+    P.sky.forEach((c, i) => rc(0, i * bh, W, bh + 1, c));
+    drawCelestial(ctx, st, t, P, W - 34, 12);
+    if (night) { ensureStars(st); st._stars.forEach(s => { s.ph += 0.04; const a = 0.4 + Math.abs(Math.sin(s.ph)) * 0.6; rc(s.x, s.y, 1, 1, `rgba(255,255,255,${a})`); }); }
+    else st.clouds.forEach(cl => { cl.x += cl.sp; if (cl.x > W + 20) cl.x = -20; drawCloud(ctx, Math.round(cl.x), Math.round(cl.y), cl.s); });
+
+    // птицы — немного, летят спокойно
+    const birdCol = night ? 'rgba(230,235,255,0.7)' : 'rgba(60,50,45,0.7)';
+    for (let i = 0; i < 3; i++) {
+      const bx = ((t * 0.25 + i * 47) % (W + 20)) - 10;
+      const by = 20 + i * 12 + Math.sin(t / 40 + i) * 3;
+      const flap = Math.sin(t / 6 + i) > 0 ? 0 : 1;
+      rc(bx, by, 2, 1, birdCol); rc(bx + 2, by - 1 + flap, 1, 1, birdCol); rc(bx - 1, by - 1 + flap, 1, 1, birdCol);
+    }
+
+    // дальняя линия деревьев/кустов
+    const far = shade(P.grass, night ? -22 : -8);
+    for (let x = 0; x < W; x += 20) { rc(x, gy - 12, 16, 12, far); rc(x + 4, gy - 16, 10, 6, far); }
+
+    // земля
+    rc(0, gy, W, H - gy, P.grass);
+    rc(0, gy, W, 3, shade(P.grass, -12));
+    rc(0, H - 6, W, 6, P.grassD);
+    // дорожка вдоль горизонта
+    const path = night ? '#5a5140' : '#d9c8a0';
+    rc(0, gy + 4, W, 7, path); rc(0, gy + 4, W, 1, shade(path, 14)); rc(0, gy + 10, W, 1, shade(path, -18));
+
+    // фоновые люди — маленькие, приглушённые, неспешно идут
+    const people = [['#6b6f86', 0.18, 8], ['#7a6a72', -0.13, 40], ['#5f7a70', 0.10, 70]];
+    people.forEach(([col, sp, off], i) => {
+      const px = (((t * sp + off) % (W + 24)) + (W + 24)) % (W + 24) - 12;
+      const py = gy + 5; const bob = Math.sin(t / 12 + i) > 0 ? 0 : 1;
+      ctx.globalAlpha = 0.5;
+      rc(px, py - 8, 3, 5, col);
+      rc(px, py - 11, 3, 3, shade(col, 12));
+      rc(px, py - 3 + bob, 1, 2, col); rc(px + 2, py - 4 - bob + 1, 1, 2, col);
+      ctx.globalAlpha = 1;
+    });
+
+    // деревья по краям (центр свободен под персонажа)
+    function tree(x, s) {
+      const g = P.grass, gd = shade(g, -14), gl = shade(g, 12);
+      rc(x, gy - 10 * s, 4 * s, 12 * s, '#7a5334');
+      rc(x - 6 * s, gy - 22 * s, 16 * s, 12 * s, g);
+      rc(x - 4 * s, gy - 26 * s, 12 * s, 6 * s, g);
+      rc(x - 6 * s, gy - 22 * s, 16 * s, 2 * s, gl);
+      rc(x - 6 * s, gy - 12 * s, 16 * s, 2 * s, gd);
+    }
+    tree(W * 0.1, 1.1); tree(W * 0.9, 1.0);
+
+    // лавочки
+    function bench(cx) {
+      const wood = '#9c6b3f', woodD = '#7a5230';
+      rc(cx - 10, gy - 1, 20, 3, wood); rc(cx - 10, gy - 1, 20, 1, shade(wood, 14));
+      rc(cx - 10, gy - 7, 20, 3, wood);
+      rc(cx - 10, gy - 7, 2, 8, woodD); rc(cx + 8, gy - 7, 2, 8, woodD);
+      rc(cx - 8, gy + 2, 2, 4, woodD); rc(cx + 6, gy + 2, 2, 4, woodD);
+    }
+    bench(W * 0.2); bench(W * 0.8);
+
+    // фонарь
+    const lx = W * 0.66;
+    rc(lx, gy - 30, 2, 30, '#3a3630');
+    rc(lx - 3, gy - 36, 8, 7, '#3a3630');
+    rc(lx - 2, gy - 35, 6, 5, night ? '#ffe08a' : '#cfe0dd');
+    if (night) { ctx.fillStyle = 'rgba(255,210,120,0.25)'; ctx.fillRect(Math.round(lx - 8), Math.round(gy - 42), 18, 18); }
+  }
 
   /* --- причёски (T рисует клетками относительно головы) --- */
   function drawHair(T, hair, hairL, hairD, style) {
@@ -2302,22 +2394,47 @@ const Sections = (() => {
 
   /* --- будущий раздел (правая кнопка навигации) --- */
   function openExtra() {
-    const FUTURE = [
-      ['🛒', 'Магазин'], ['🏆', 'Достижения'], ['🎒', 'Инвентарь'],
-      ['👥', 'Друзья'], ['⚔️', 'Квесты'], ['🐾', 'Питомцы'],
+    const items = [
+      ['🛒', 'Магазин', openShop, false],
+      ['🏆', 'Достижения', openAchievements, false],
+      ['⚔️', 'Квесты', openQuests, false],
+      ['🎒', 'Инвентарь', null, true],
+      ['👥', 'Друзья', null, true],
+      ['🐾', 'Питомцы', null, true],
     ];
     const grid = h('div', { class: 'menu-grid' },
-      ...FUTURE.map(([g, l]) => h('div', { class: 'menu-tile menu-tile--soon' },
-        h('span', { class: 'tile-badge', text: 'скоро' }),
-        h('span', { class: 'tile-glyph', text: g }),
-        h('span', { class: 'tile-label', text: l }),
-      )),
+      ...items.map(([g, l, go, soon]) => {
+        const tile = h('div', { class: 'menu-tile' + (soon ? ' menu-tile--soon' : '') },
+          soon ? h('span', { class: 'tile-badge', text: 'скоро' }) : null,
+          h('span', { class: 'tile-glyph', text: g }),
+          h('span', { class: 'tile-label', text: l }),
+        );
+        if (go) tile.addEventListener('click', () => { TG.haptic('light'); go(); });
+        return tile;
+      }),
     );
     const wrap = h('div', {},
       h('p', { class: 'section-hint', text: 'Здесь появятся магазин, достижения, квесты и другое. Всё уже готово к расширению.' }),
       grid,
     );
     UI.open('Скоро', '★', wrap);
+  }
+
+  function openShop() {
+    const wrap = h('div', {});
+    UI.open('Магазин', '🛒', wrap);
+    wrap.append(
+      h('p', { class: 'section-hint', text: 'Здесь можно будет тратить монеты на наряды, питомцев и украшения.' }),
+      empty('🛒', 'Магазин скоро откроется'),
+    );
+  }
+  function openQuests() {
+    const wrap = h('div', {});
+    UI.open('Квесты', '⚔️', wrap);
+    wrap.append(
+      h('p', { class: 'section-hint', text: 'Задания с особыми наградами за их выполнение.' }),
+      empty('⚔️', 'Квесты скоро появятся'),
+    );
   }
 
   /* ============================================================
@@ -2804,27 +2921,37 @@ const Sections = (() => {
   }
 
   /* ============================================================
-     ДОСТИЖЕНИЯ
+     ДОСТИЖЕНИЯ (каталог; легко расширять — просто добавь запись)
      ============================================================ */
+  const ACHIEVEMENTS = [
+    { id: 'first_task', glyph: '📋', title: 'Первый шаг', desc: 'Выполни первую задачу', check: s => s.stats.tasksDone >= 1 },
+    { id: 'ten_tasks', glyph: '✅', title: 'Продуктивность', desc: 'Выполни 10 задач', check: s => s.stats.tasksDone >= 10 },
+    { id: 'first_habit', glyph: '🌱', title: 'Новая привычка', desc: 'Отметь привычку', check: s => s.stats.habitsDone >= 1 },
+    { id: 'level2', glyph: '⭐', title: 'Рост', desc: 'Достигни 2 уровня', check: s => s.level >= 2 },
+    { id: 'first_goal', glyph: '🐷', title: 'Мечта сбылась', desc: 'Заверши цель в копилке', check: s => s.stats.goalsDone >= 1 },
+    { id: 'first_deed', glyph: '✨', title: 'Доброе сердце', desc: 'Соверши доброе дело', check: s => (s.deeds || []).length >= 1 },
+  ];
   function openAchievements() {
     const s = Game.get();
     const wrap = h('div', {});
     UI.open('Достижения', '🏆', wrap);
-    wrap.append(h('p', { class: 'section-hint', text: 'Награды за твои реальные победы.' }));
+    const unlocked = ACHIEVEMENTS.filter(a => a.check(s)).length;
+    wrap.append(
+      h('p', { class: 'section-hint', text: 'Награды за твои реальные победы.' }),
+      h('div', { class: 'karma-summary', text: `🏆 ${unlocked} / ${ACHIEVEMENTS.length} · ` + T('Разблокировано') }),
+    );
     const list = h('div', { class: 'list' });
-    if (!s.achievements.length) {
-      list.append(empty('🏆', 'Пока нет достижений. Заверши цель в копилке или прокачай привычки!'));
-    } else {
-      s.achievements.forEach(a => list.append(
-        h('div', { class: 'card-row' },
-          h('div', { class: 'ach-glyph', text: a.glyph || '🏅' }),
-          h('div', { class: 'row-body' },
-            h('div', { class: 'row-title', text: a.title }),
-            h('div', { class: 'row-sub', text: a.date }),
-          ),
-        )
+    ACHIEVEMENTS.forEach(a => {
+      const done = a.check(s);
+      list.append(h('div', { class: 'card-row ach-row' + (done ? '' : ' ach-locked') },
+        h('div', { class: 'ach-glyph', text: done ? a.glyph : '🔒' }),
+        h('div', { class: 'row-body' },
+          h('div', { class: 'row-title', text: a.title }),
+          h('div', { class: 'row-sub', text: a.desc }),
+        ),
+        done ? h('div', { class: 'ach-done', text: '✓' }) : null,
       ));
-    }
+    });
     wrap.append(list);
   }
 
@@ -2871,7 +2998,7 @@ const Sections = (() => {
     UI.open('Локация', '🌅', wrap);
     wrap.append(h('p', { class: 'section-hint', text: 'Выбери, где находится персонаж и какое время суток. «Авто» подстраивается под твоё реальное время — утро, день, закат, ночь.' }));
 
-    const envs = [['meadow', '🌳 Поляна'], ['room', '🏠 Комната']];
+    const envs = [['meadow', '🌳 Поляна'], ['park', '🌲 Парк'], ['room', '🏠 Комната']];
     const times = [['auto', '⏱ Авто'], ['dawn', '🌅 Рассвет'], ['day', '☀️ День'], ['sunset', '🌇 Закат'], ['night', '🌙 Ночь']];
 
     function group(title, key, opts) {
@@ -3017,7 +3144,7 @@ const Sections = (() => {
   }
   function fmt(n) { return Math.round(n).toLocaleString('ru-RU'); }
 
-  return { openMenu, openExtra, openCustomize, openGoals, openAchievements, openWidgetsConfig, openScenery, openSettings, openKarmaIntro, openKarmaAdd, openKarmaJournal, openTasks, openHabits, openCalendar, openFinance };
+  return { openMenu, openExtra, openShop, openQuests, openCustomize, openGoals, openAchievements, openWidgetsConfig, openScenery, openSettings, openKarmaIntro, openKarmaAdd, openKarmaJournal, openTasks, openHabits, openCalendar, openFinance };
 })();
 
 
