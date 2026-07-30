@@ -617,7 +617,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 
 /* экран выбора языка */
-.lang-screen { align-items: center; }
+.lang-screen { align-items: center; z-index: 120; }
 .lang-card { max-width: 340px; width: 100%; text-align: center; padding: 26px 22px; background: var(--parchment); border: 4px solid var(--wood-dark); box-shadow: inset 0 0 0 3px var(--parchment-2), 4px 6px 0 var(--shadow); }
 .lang-logo { font-size: 40px; margin-bottom: 6px; }
 .lang-title { font-family: 'Pixelify Sans', sans-serif; font-size: 22px; font-weight: 700; color: var(--wood-dark); }
@@ -3119,8 +3119,10 @@ const App = (() => {
       if (p >= 100) {
         clearInterval(timer);
         setTimeout(() => {
-          if (!Game.get().lang) showLangChooser(revealHub); // первый запуск — выбор языка
-          else revealHub();
+          // Всегда показываем игру — так экран загрузки не может «зависнуть».
+          try { revealHub(); } catch (e) { console.error(e); refs.loading.classList.add('hidden'); refs.hub.classList.remove('hidden'); }
+          // Выбор языка (если ещё не выбран) — поверх игры.
+          if (!Game.get().lang) { try { showLangChooser(() => { if (!Game.get().flags.karmaIntro) setTimeout(() => Sections.openKarmaIntro(), 400); }); } catch (e) { console.error(e); } }
         }, 500);
       }
     }, 220);
@@ -3139,8 +3141,8 @@ const App = (() => {
     renderWidgets();
     refreshKarma();
     setTimeout(() => showSpeech(T('Привет! Готов сделать этот день лучше? ✨'), 3200), 700);
-    // первый показ механики Кармы
-    if (!Game.get().flags.karmaIntro) setTimeout(() => Sections.openKarmaIntro(), 1100);
+    // первый показ механики Кармы — только когда язык уже выбран
+    if (Game.get().lang && !Game.get().flags.karmaIntro) setTimeout(() => Sections.openKarmaIntro(), 1100);
   }
 
   /* --- верхняя панель --- */
@@ -3223,6 +3225,7 @@ const App = (() => {
   }
 
   function pulse(el) {
+    if (!el || typeof el.animate !== 'function') return;
     el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }],
       { duration: 300, easing: 'ease-out' });
   }
