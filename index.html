@@ -616,6 +616,14 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   background: #fff7e8; border: 3px dashed var(--wood-light);
 }
 
+/* экран выбора языка */
+.lang-screen { align-items: center; }
+.lang-card { max-width: 340px; width: 100%; text-align: center; padding: 26px 22px; background: var(--parchment); border: 4px solid var(--wood-dark); box-shadow: inset 0 0 0 3px var(--parchment-2), 4px 6px 0 var(--shadow); }
+.lang-logo { font-size: 40px; margin-bottom: 6px; }
+.lang-title { font-family: 'Pixelify Sans', sans-serif; font-size: 22px; font-weight: 700; color: var(--wood-dark); }
+.lang-sub { font-size: 14px; color: var(--ink-soft); margin-bottom: 18px; }
+.lang-opt { margin-top: 10px; font-size: 17px; }
+
 /* level up modal */
 .levelup {
   position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
@@ -839,6 +847,179 @@ const TG = (() => {
 })();
 
 
+/* ===== js/i18n.js ===== */
+/* ============================================================
+   Локализация (RU / EN).
+   T(str) переводит РУССКУЮ строку в текущий язык (или возвращает как есть).
+   Почти все UI-строки проходят через фабрику h(), поэтому перевод
+   применяется автоматически; несколько собранных вручную строк
+   переводятся точечно вызовом T().
+   ============================================================ */
+const I18N = (() => {
+  let lang = 'ru';
+
+  const EN = {
+    // навигация / общее
+    'Главная': 'Home', 'Меню': 'Menu', 'Скоро': 'Soon', 'скоро': 'soon',
+    'Карма': 'Karma', 'Герой': 'Hero', 'Новое': 'New',
+    'ур. ': 'lv. ', 'ур.': 'lv.', 'Опыт': 'XP', 'Монеты': 'Coins', 'Уровень': 'Level',
+    'вкл': 'on', 'выкл': 'off', 'нет': 'none', 'авто': 'auto',
+    'Отмена': 'Cancel', 'Сохранить': 'Save', 'Добавить задачу': 'Add task',
+    'Настройки': 'Settings', 'Язык': 'Language', 'Сбросить прогресс': 'Reset progress',
+
+    // меню
+    'Задачи': 'Tasks', 'Календарь': 'Calendar', 'Планировщик': 'Planner',
+    'Привычки': 'Habits', 'Копилка': 'Savings', 'Локация': 'Location',
+    'Расходы': 'Expenses', 'Доходы': 'Income', 'Достижения': 'Achievements',
+    'Статистика': 'Stats', 'Виджеты': 'Widgets', 'Кастомизация': 'Customize',
+    'Магазин': 'Shop', 'Инвентарь': 'Inventory', 'Квесты': 'Quests',
+    'Друзья': 'Friends', 'Питомцы': 'Pets',
+
+    // кастомизация
+    'Имя': 'Name', 'Имя героя': 'Hero name', 'Пол': 'Gender', 'Кожа': 'Skin',
+    'Волосы': 'Hair', 'Причёска': 'Hairstyle', 'Рубашка': 'Shirt',
+    'Аксессуар': 'Accessory', 'Питомец': 'Pet', 'Рамка профиля': 'Profile frame',
+    '♂ парень': '♂ boy', '♀ девушка': '♀ girl',
+    'кот': 'cat', 'пёс': 'dog', 'заяц': 'rabbit', 'лиса': 'fox', 'панда': 'panda',
+    'птица': 'bird', 'слайм': 'slime', 'капибара': 'capybara',
+    'очки': 'glasses', 'шляпа': 'hat', 'корона': 'crown',
+    'короткие': 'short', 'ёжик': 'spiky', 'длинные': 'long', 'хвост': 'ponytail',
+    'пучок': 'bun', 'бритые': 'buzz', 'кудри': 'curly',
+    'золото': 'gold', 'дерево': 'wood', 'листья': 'leaves', 'король': 'royal',
+
+    // локация / время
+    '🌳 Поляна': '🌳 Meadow', '🏠 Комната': '🏠 Room', 'Место': 'Place', 'Время суток': 'Time of day',
+    '⏱ Авто': '⏱ Auto', '🌅 Рассвет': '🌅 Dawn', '☀️ День': '☀️ Day', '🌇 Закат': '🌇 Sunset', '🌙 Ночь': '🌙 Night',
+
+    // финансы
+    '💰 Доход': '💰 Income', '💸 Расход': '💸 Expense', 'Баланс': 'Balance', 'баланс': 'balance',
+    'Всего доход': 'Total income', 'Всего расход': 'Total expenses',
+    'Сумма': 'Amount', 'Название…': 'Title…', 'Сумма цели': 'Goal amount', '+ сумма': '+ amount',
+
+    // задачи
+    'Новая задача…': 'New task…', 'Дело…': 'Task…',
+    'Будни': 'Weekdays', 'Будни Пн–Пт': 'Weekdays Mon–Fri', '🔁 Повтор по дням': '🔁 Repeat by days',
+    'Каждый день': 'Every day', 'на сегодня': 'today', 'задач': 'tasks', 'задача': 'task',
+    'Задачи на сегодня': "Today's tasks", 'Привычки дня': 'Daily habits', 'Из календаря': 'From calendar',
+    'Например: выпить воды': 'e.g. drink water',
+
+    // карма
+    '✨ КАРМА': '✨ KARMA', 'Журнал добрых дел': 'Good deeds journal',
+    '➕ Добавить доброе дело': '➕ Add a good deed',
+    '✨ Расскажи о своём добром деле': '✨ Tell us about your good deed',
+    '✨ Новый параметр открыт — Карма': '✨ New stat unlocked — Karma',
+    'Начать путь добра': 'Begin the path of kindness',
+
+    // статистика
+    'Задач сделано': 'Tasks done', 'Привычек отмечено': 'Habits marked', 'Лучшая серия': 'Best streak',
+
+    // level up / достижения
+    'НОВЫЙ УРОВЕНЬ': 'LEVEL UP', 'Персонаж стал сильнее!': 'Your character got stronger!',
+    '✓ Цель достигнута!': '✓ Goal reached!', ' · сегодня': ' · today',
+
+    // загрузка / реплики
+    'Просыпается мир…': 'The world awakens…', 'Сажаем траву…': 'Planting grass…',
+    'Будим бабочек…': 'Waking the butterflies…', 'Расставляем облака…': 'Arranging clouds…',
+    'Завариваем кофе герою…': 'Brewing coffee for the hero…', 'Почти готово!': 'Almost ready!',
+    'Я верю в тебя!': 'I believe in you!', 'Ты сегодня молодец.': 'You did great today.',
+    'Кофе выпит. Погнали! ☕': 'Coffee done. Let’s go! ☕', 'Уже отмечено сегодня 🌙': 'Already done today 🌙',
+    'Не забудь про привычки 🌱': 'Don’t forget your habits 🌱',
+    'Одна задача — и уже победа 🏆': 'One task — already a win 🏆',
+    'Маленький шаг — большой прогресс.': 'A small step — big progress.',
+    'Хороший день, чтобы что-то сделать!': 'A good day to get things done!',
+    'Привет! Готов сделать этот день лучше? ✨': 'Hi! Ready to make today better? ✨',
+
+    // пустые состояния / подсказки
+    'Записей пока нет.': 'No entries yet.',
+    'Пока пусто. Добавь первую задачу!': 'Empty so far. Add your first task!',
+    'Пока нет целей. Создай первую копилку!': 'No goals yet. Create your first jar!',
+    'Пока нет достижений. Заверши цель в копилке или прокачай привычки!': 'No achievements yet. Finish a savings goal or level up your habits!',
+    'Пока нет запланированных дел.': 'No planned tasks yet.',
+    'Пока пусто. Отметь первое доброе дело — и оно останется здесь навсегда.': 'Empty so far. Note your first good deed — it will stay here forever.',
+    'Награды за твои реальные победы.': 'Rewards for your real-life wins.',
+    'На что копим (напр. велосипед)…': 'What are you saving for (e.g. a bike)…',
+    'Задача может быть с временем (напр. 15:00–17:00) и повтором по дням недели — удобно для работы, тренировок и т.п.':
+      'A task can have a time (e.g. 15:00–17:00) and repeat on weekdays — handy for work, workouts, etc.',
+    'Запланируй дела на конкретные дни и время.': 'Plan tasks for specific days and times.',
+    'Выбери, что показывать прямо на главном экране рядом с персонажем.': 'Choose what to show on the home screen next to your character.',
+    'Выбери, где находится персонаж и какое время суток. «Авто» подстраивается под твоё реальное время — утро, день, закат, ночь.':
+      'Choose where your character is and the time of day. “Auto” follows your real time — morning, day, sunset, night.',
+    'Поставь реальную цель — коплю на… Дойдёшь до 100% → получишь достижение и игровую награду (+120 XP, +80 ◉).':
+      'Set a real goal — saving for… Reach 100% → get an achievement and a reward (+120 XP, +80 ◉).',
+    'Добавь привычку и ухаживай за ней каждый день.': 'Add a habit and keep it up every day.',
+    'Отмечай привычку каждый день — растёт серия и награда.': 'Check a habit every day — your streak and reward grow.',
+    'Это личный дневник, а не ежедневная обязанность. Отмечай добро, которое уже есть в твоей жизни, и сохраняй эти моменты.':
+      'This is a personal diary, not a daily chore. Notice the good already in your life and keep these moments.',
+    'Какое доброе дело ты сегодня сделал? Не обязательно писать много — иногда даже одна строчка станет приятным воспоминанием спустя месяцы.':
+      'What good deed did you do today? No need to write a lot — even one line can become a nice memory months later.',
+    'На этот день задач нет. Добавь их в «Задачах» (с датой или повтором) или в «Планировщике».':
+      'No tasks for this day. Add them below, or in “Tasks” (with a date or repeat) and the “Planner”.',
+    'Здесь появятся магазин, достижения, квесты и другое. Всё уже готово к расширению.':
+      'Shop, achievements, quests and more will appear here. Everything is ready to expand.',
+
+    // туториал кармы
+    'В этом мире есть сила, которую нельзя купить за монеты. Это Карма.':
+      'In this world there is a power you cannot buy with coins. It is Karma.',
+    'Каждый раз, когда ты совершаешь доброе дело в реальной жизни, ты можешь отметить его здесь. Маленькая помощь. Доброе слово. Поддержка друга. Забота о животных. Или любой хороший поступок, который сделал этот мир немного лучше.':
+      'Every time you do a good deed in real life, you can note it here. A small help. A kind word. Supporting a friend. Caring for animals. Or any good act that made this world a little better.',
+    'Постепенно твоя Карма будет расти, а вместе с ней — небольшие игровые награды: опыт и монеты. Но самое главное — ты будешь видеть, сколько хорошего уже сделал.':
+      'Gradually your Karma will grow, and with it small in-game rewards: XP and coins. But most importantly — you’ll see how much good you’ve already done.',
+    '❤️ Если никто не заметил твоё доброе дело — не переживай. Ты всегда можешь рассказать о нём здесь, и мы искренне порадуемся за тебя.':
+      '❤️ If no one noticed your good deed — don’t worry. You can always share it here, and we’ll be genuinely happy for you.',
+    'Иногда даже самый маленький поступок способен изменить чей-то день. :)':
+      'Sometimes even the smallest act can change someone’s day. :)',
+    '💛 Возможно, ты уже забыл некоторые из этих моментов. Но каждое из этих добрых дел однажды сделало чей-то день лучше. Мы бываем слишком строги к себе и забываем, сколько хорошего уже сделали. Этот журнал — напоминание, что даже маленькие поступки имеют значение.':
+      '💛 You may have forgotten some of these moments. But each of these good deeds once made someone’s day better. We can be too hard on ourselves and forget how much good we’ve already done. This journal is a reminder that even small acts matter.',
+
+    // собранные вручную (переводятся через T())
+    'Доброта растёт!': 'Kindness is growing!',
+    '✨ +1 к карме · доброе дело сохранено': '✨ +1 Karma · good deed saved',
+    'Цель достигнута: ': 'Goal reached: ',
+    '📌 ': '📌 ', 'Карма ур. ': 'Karma lv. ', 'карма ур.': 'karma lv.',
+    'копилка': 'savings',
+    'Выбери язык': 'Choose your language', 'Готово': 'Done',
+    'до следующего уровня': 'to the next level',
+    'Точками отмечены дни с задачами. Нажми на день, чтобы посмотреть и добавить задачи.':
+      'Dots mark days with tasks. Tap a day to view and add tasks.',
+    'Добавить дело на этот день…': 'Add a task for this day…',
+    'Прогресс сбросится безвозвратно. Продолжить?': 'Progress will be reset permanently. Continue?',
+    'Прогресс, кастомизация и журнал хранятся на этом устройстве.': 'Progress, customization and journal are stored on this device.',
+    'Приятная мелочь': 'A little joy',
+  };
+
+  // локализованные массивы (собираются в строки в коде, а не через h())
+  const ARR = {
+    months: {
+      ru: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+      en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    },
+    monthsGen: {
+      ru: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+      en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+    },
+    dows: {
+      ru: ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'],
+      en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    },
+  };
+
+  function setLang(l) { lang = (l === 'en') ? 'en' : 'ru'; }
+  function get() { return lang; }
+  function t(str) {
+    if (lang === 'ru' || str == null) return str;
+    return (str in EN) ? EN[str] : str;
+  }
+  const months = () => ARR.months[lang];
+  const monthsGen = () => ARR.monthsGen[lang];
+  const dows = () => ARR.dows[lang];
+
+  return { t, setLang, get, months, monthsGen, dows };
+})();
+
+// глобальный короткий перевод
+function T(s) { return I18N.t(s); }
+
+
 /* ===== js/state.js ===== */
 /* ============================================================
    Состояние игры + сохранение.
@@ -888,6 +1069,7 @@ const Game = (() => {
     karma: { level: 0, progress: 0 },   // карма — доброта в реальной жизни
     deeds: [],                          // журнал добрых дел {id, text, date, karmaLevel}
     flags: { karmaIntro: false },       // показанные обучалки (легко расширять)
+    lang: null,                         // null = язык ещё не выбран
     stats: { tasksDone: 0, habitsDone: 0, goalsDone: 0 },
     createdAt: Date.now(),
   });
@@ -941,6 +1123,11 @@ const Game = (() => {
   function setName(n) { s.name = (n || 'Герой').slice(0, 16); save(); emit(); }
   function setLook(patch) { Object.assign(s.look, patch); save(); emit(); }
   function setScene(patch) { Object.assign(s.scene, patch); save(); emit(); }
+  function setLang(l) { s.lang = (l === 'en') ? 'en' : 'ru'; save(); emit(); }
+  function reset() {
+    try { localStorage.removeItem('pixelquest_save_v1'); } catch (e) {}
+    try { location.reload(); } catch (e) {}
+  }
 
   /* --- задачи --- */
   // addTask(title, opts) где opts = {reward, date, time, days}
@@ -1109,7 +1296,7 @@ const Game = (() => {
   function xpMax() { return xpForLevel(s.level); }
 
   return {
-    get, save, onChange, emit, reward, setName, setLook, setScene,
+    get, save, onChange, emit, reward, setName, setLook, setScene, setLang, reset,
     addTask, toggleTask, delTask, tasksForDate, taskDoneOn, weekdayOf,
     addHabit, markHabit, delHabit, habitDoneToday,
     addTxn, delTxn, balance, totals,
@@ -1924,14 +2111,16 @@ const Scene = (() => {
 /* --- крошечный хелпер для создания элементов --- */
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
+  const tr = (typeof T === 'function') ? T : (x => x);
   if (attrs) for (const k in attrs) {
     if (k === 'class') el.className = attrs[k];
-    else if (k === 'html') el.innerHTML = attrs[k];
-    else if (k === 'text') el.textContent = attrs[k];
+    else if (k === 'html') el.innerHTML = tr(attrs[k]);
+    else if (k === 'text') el.textContent = tr(attrs[k]);
+    else if (k === 'placeholder') el.setAttribute('placeholder', tr(attrs[k]));
     else if (k.startsWith('on') && typeof attrs[k] === 'function') el.addEventListener(k.slice(2), attrs[k]);
     else if (attrs[k] != null) el.setAttribute(k, attrs[k]);
   }
-  kids.flat().forEach(c => { if (c != null) el.append(c.nodeType ? c : document.createTextNode(c)); });
+  kids.flat().forEach(c => { if (c != null) el.append(c.nodeType ? c : document.createTextNode(tr(c))); });
   return el;
 }
 
@@ -2023,7 +2212,7 @@ const FX = (() => {
     const card = h('div', { class: 'levelup-card karma-up' },
       h('div', { class: 'lu-title', text: '✨ КАРМА' }),
       h('div', { class: 'lu-level', text: level }),
-      h('div', { class: 'lu-sub', text: `Доброта растёт!  +${xp} XP · +${coins} ◉` }),
+      h('div', { class: 'lu-sub', text: T('Доброта растёт!') + `  +${xp} XP · +${coins} ◉` }),
     );
     modal(card, { autoClose: 2900 });
     particles(innerWidth / 2, innerHeight / 2, ['✨', '💚', '★', '◉'], 18);
@@ -2045,7 +2234,7 @@ const UI = (() => {
     const body = h('div', { class: 'sheet-body' }, bodyEl);
     const sheet = h('div', { class: 'sheet' },
       h('div', { class: 'sheet-header' },
-        h('div', { class: 'sheet-title', html: `<span class="th-glyph">${glyph}</span>${title}` }),
+        h('div', { class: 'sheet-title', html: `<span class="th-glyph">${glyph}</span>${T(title)}` }),
         h('button', { class: 'sheet-close', text: '✕', onclick: () => close() }),
       ),
       body,
@@ -2092,6 +2281,7 @@ const Sections = (() => {
     { id: 'achievements', glyph: '🏆', label: 'Достижения', go: openAchievements },
     { id: 'stats',    glyph: '📊', label: 'Статистика',  go: openStats },
     { id: 'widgets',  glyph: '🧩', label: 'Виджеты',     go: openWidgetsConfig },
+    { id: 'settings', glyph: '⚙️', label: 'Настройки',   go: openSettings },
   ];
 
   function openMenu() {
@@ -2143,7 +2333,7 @@ const Sections = (() => {
     const to = h('input', { class: 'pix-input time-in', type: 'time' });
 
     let days = [], repeat = false;
-    const DOW = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    const DOW = I18N.dows();
     const dayRow = h('div', { class: 'day-chips hidden' });
     DOW.forEach((d, i) => {
       const wd = i + 1;
@@ -2220,9 +2410,9 @@ const Sections = (() => {
     const box = h('div', { class: 'row-sub row-meta' });
     if (t.time) box.append(h('span', { class: 'meta-pill', text: '🕒 ' + t.time }));
     if (t.days) {
-      const names = ['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-      const label = (t.days.length === 5 && [1, 2, 3, 4, 5].every(d => t.days.includes(d))) ? 'Будни'
-        : (t.days.length === 7 ? 'Каждый день' : t.days.map(d => names[d]).join(' '));
+      const names = ['', ...I18N.dows()];
+      const label = (t.days.length === 5 && [1, 2, 3, 4, 5].every(d => t.days.includes(d))) ? T('Будни')
+        : (t.days.length === 7 ? T('Каждый день') : t.days.map(d => names[d]).join(' '));
       box.append(h('span', { class: 'meta-pill repeat', text: '🔁 ' + label }));
     } else if (t.date) {
       box.append(h('span', { class: 'meta-pill', text: '📅 ' + t.date }));
@@ -2289,7 +2479,7 @@ const Sections = (() => {
 
     function render() {
       const y = view.getFullYear(), m = view.getMonth();
-      const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+      const months = I18N.months();
       head.innerHTML = '';
       head.append(
         h('button', { class: 'cal-nav', text: '‹', onclick: () => { view = new Date(y, m - 1, 1); render(); } }),
@@ -2297,7 +2487,7 @@ const Sections = (() => {
         h('button', { class: 'cal-nav', text: '›', onclick: () => { view = new Date(y, m + 1, 1); render(); } }),
       );
       grid.innerHTML = '';
-      ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => grid.append(h('div', { class: 'cal-dow', text: d })));
+      I18N.dows().forEach(d => grid.append(h('div', { class: 'cal-dow', text: d })));
       let first = new Date(y, m, 1).getDay(); first = first === 0 ? 6 : first - 1;
       for (let i = 0; i < first; i++) grid.append(h('div', { class: 'cal-cell blank' }));
       const days = new Date(y, m + 1, 0).getDate();
@@ -2320,8 +2510,27 @@ const Sections = (() => {
       const items = Game.tasksForDate(selected);
       const [yy, mm, dd] = selected.split('-').map(Number);
       const label = `${dd}.${String(mm).padStart(2, '0')}.${yy}`;
-      dayPanel.append(h('div', { class: 'cal-day-title', text: '📌 ' + label + (selected === Game.todayKey() ? ' · сегодня' : '') }));
-      if (!items.length) { dayPanel.append(h('p', { class: 'section-hint', text: 'На этот день задач нет. Добавь их в «Задачах» (с датой или повтором) или в «Планировщике».' })); return; }
+      dayPanel.append(h('div', { class: 'cal-day-title', text: '📌 ' + label + (selected === Game.todayKey() ? T(' · сегодня') : '') }));
+
+      // --- добавить задачу прямо на выбранную дату ---
+      const title = h('input', { class: 'pix-input', type: 'text', placeholder: 'Добавить дело на этот день…', maxlength: '60' });
+      const from = h('input', { class: 'pix-input time-in', type: 'time' });
+      const to = h('input', { class: 'pix-input time-in', type: 'time' });
+      const addForDay = () => {
+        if (!title.value.trim()) return;
+        const time = from.value ? (to.value ? from.value + '–' + to.value : from.value) : null;
+        Game.addTask(title.value, { reward: 15, date: selected, time });
+        title.value = ''; from.value = ''; to.value = '';
+        render();
+      };
+      title.addEventListener('keydown', e => { if (e.key === 'Enter') addForDay(); });
+      dayPanel.append(
+        h('div', { class: 'add-row' }, title),
+        h('div', { class: 'add-row time-row' }, h('span', { class: 'field-lbl', text: '🕒' }), from, h('span', { class: 'dash', text: '–' }), to,
+          h('button', { class: 'btn', text: '+', onclick: addForDay })),
+      );
+
+      if (!items.length) { dayPanel.append(h('p', { class: 'section-hint', text: 'Пока нет запланированных дел.' })); return; }
       // сортировка по времени
       items.sort((a, b) => (a.time || '99').localeCompare(b.time || '99'));
       const list = h('div', { class: 'list' });
@@ -2337,6 +2546,7 @@ const Sections = (() => {
         list.append(h('div', { class: 'card-row' + (done ? ' done' : '') },
           check,
           h('div', { class: 'row-body' }, h('div', { class: 'row-title', text: t.title }), taskMeta(t)),
+          h('button', { class: 'row-del', text: '🗑', onclick: () => { Game.delTask(t.id); render(); } }),
         ));
       });
       dayPanel.append(list);
@@ -2567,7 +2777,7 @@ const Sections = (() => {
           amount.value = '';
           if (done) {
             FX.particles(innerWidth / 2, innerHeight / 2, ['🎉', '★', '✦', '◉'], 16);
-            FX.toast(`🏆 Цель достигнута: ${g.name}!`);
+            FX.toast('🏆 ' + T('Цель достигнута: ') + g.name + '!');
             FX.beep(660, 0.1); setTimeout(() => FX.beep(880, 0.12), 120);
             TG.haptic('success');
             if (done.res && done.res.leveledTo) setTimeout(() => FX.levelUp(done.res.leveledTo), 600);
@@ -2682,6 +2892,32 @@ const Sections = (() => {
   }
 
   /* ============================================================
+     НАСТРОЙКИ (язык, сброс)
+     ============================================================ */
+  function openSettings() {
+    const wrap = h('div', {});
+    UI.open('Настройки', '⚙️', wrap);
+    const langBox = h('div', { class: 'swatches' });
+    [['ru', '🇷🇺 Русский'], ['en', '🇬🇧 English']].forEach(([val, lbl]) => {
+      const sel = (Game.get().lang || 'ru') === val;
+      const b = h('button', { class: 'swatch opt' + (sel ? ' selected' : ''), text: lbl });
+      b.addEventListener('click', () => {
+        App.applyLang(val); TG.haptic('light');
+        UI.close(); setTimeout(openSettings, 70); // переоткрыть на новом языке
+      });
+      langBox.append(b);
+    });
+    wrap.append(h('div', { class: 'custom-group' }, h('h4', { text: 'Язык' }), langBox));
+    wrap.append(
+      h('p', { class: 'section-hint', text: 'Прогресс, кастомизация и журнал хранятся на этом устройстве.' }),
+      h('div', { class: 'add-row' }, h('button', {
+        class: 'btn btn--ghost', text: 'Сбросить прогресс',
+        onclick: () => { if (confirm(T('Прогресс сбросится безвозвратно. Продолжить?'))) Game.reset(); },
+      })),
+    );
+  }
+
+  /* ============================================================
      КАРМА — доброта в реальной жизни
      (личный дневник добрых дел; спроектировано под расширение:
       достижения/титулы/декор можно добавлять поверх без переписывания)
@@ -2691,7 +2927,7 @@ const Sections = (() => {
 
   function fmtDeedDate(key) {
     const [y, m, d] = key.split('-').map(Number);
-    const M = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    const M = I18N.monthsGen();
     return `${d} ${M[m - 1]} ${y}`;
   }
 
@@ -2730,7 +2966,7 @@ const Sections = (() => {
       if (!txt) { ta.focus(); return; }
       const leveled = Game.addDeed(txt);
       close();
-      FX.toast('✨ <b>+1</b> к карме · доброе дело сохранено');
+      FX.toast(I18N.get() === 'en' ? '✨ <b>+1</b> Karma · good deed saved' : '✨ <b>+1</b> к карме · доброе дело сохранено');
       FX.particles(innerWidth / 2, innerHeight * 0.4, ['✨', '💚', '★'], 10);
       FX.beep(560, 0.07); TG.haptic('light');
       if (App.refreshKarma) App.refreshKarma();
@@ -2750,7 +2986,7 @@ const Sections = (() => {
     UI.open('Журнал добрых дел', '📖', wrap);
     const need = Game.karmaNext();
     wrap.append(
-      h('div', { class: 'karma-summary', text: `✨ Карма ур. ${s.karma.level} · ${s.karma.progress} / ${need} до следующего уровня` }),
+      h('div', { class: 'karma-summary', text: '✨ ' + T('Карма ур. ') + s.karma.level + ` · ${s.karma.progress} / ${need} ` + T('до следующего уровня') }),
       h('p', { class: 'section-hint', text: 'Это личный дневник, а не ежедневная обязанность. Отмечай добро, которое уже есть в твоей жизни, и сохраняй эти моменты.' }),
       h('div', { class: 'add-row' }, h('button', { class: 'btn btn--wide', text: '➕ Добавить доброе дело', onclick: openKarmaAdd })),
     );
@@ -2781,7 +3017,7 @@ const Sections = (() => {
   }
   function fmt(n) { return Math.round(n).toLocaleString('ru-RU'); }
 
-  return { openMenu, openExtra, openCustomize, openGoals, openAchievements, openWidgetsConfig, openScenery, openKarmaIntro, openKarmaAdd, openKarmaJournal, openTasks, openHabits, openCalendar, openFinance };
+  return { openMenu, openExtra, openCustomize, openGoals, openAchievements, openWidgetsConfig, openScenery, openSettings, openKarmaIntro, openKarmaAdd, openKarmaJournal, openTasks, openHabits, openCalendar, openFinance };
 })();
 
 
@@ -2818,6 +3054,9 @@ const App = (() => {
       karmaJournalBtn: document.getElementById('karmaJournalBtn'),
     };
 
+    // язык
+    if (Game.get().lang) I18N.setLang(Game.get().lang);
+
     // имя из Telegram, если пользователь ещё «Герой»
     const tgUser = TG.user();
     if (tgUser && Game.get().name === 'Герой') Game.setName(tgUser.name);
@@ -2830,6 +3069,39 @@ const App = (() => {
     Game.onChange(refreshTop);
   }
 
+  function applyStaticLang() {
+    const set = (id, key) => { const el = document.querySelector(id); if (el) el.textContent = T(key); };
+    set('#navHome .nav-label', 'Главная');
+    set('#navMenu .nav-label', 'Меню');
+    set('#navExtra .nav-label', 'Скоро');
+    const kl = document.querySelector('.karma-label'); if (kl) kl.textContent = T('Карма');
+  }
+
+  // сменить язык на лету
+  function applyLang(l) {
+    Game.setLang(l);
+    I18N.setLang(l);
+    applyStaticLang();
+    refreshTop();
+    renderWidgets();
+    refreshKarma();
+  }
+
+  // выбор языка перед входом (если ещё не выбран)
+  function showLangChooser(done) {
+    const pick = (l) => { applyLang(l); overlay.remove(); done(); };
+    const overlay = h('div', { class: 'levelup lang-screen' },
+      h('div', { class: 'levelup-card lang-card' },
+        h('div', { class: 'lang-logo', text: '✨' }),
+        h('div', { class: 'lang-title', text: 'Выбери язык' }),
+        h('div', { class: 'lang-sub', text: 'Choose your language' }),
+        h('button', { class: 'btn btn--wide lang-opt', text: '🇷🇺  Русский', onclick: () => pick('ru') }),
+        h('button', { class: 'btn btn--wide lang-opt', text: '🇬🇧  English', onclick: () => pick('en') }),
+      ),
+    );
+    document.body.append(overlay);
+  }
+
   /* --- экран загрузки --- */
   const TIPS = [
     'Просыпается мир…', 'Расставляем облака…', 'Завариваем кофе герою…',
@@ -2837,14 +3109,20 @@ const App = (() => {
   ];
   function runLoading() {
     let p = 0, ti = 0;
-    refs.loadingTip.textContent = TIPS[0];
+    refs.loadingTip.textContent = T(TIPS[0]);
     const timer = setInterval(() => {
       p += 6 + Math.random() * 12;
       if (p >= 100) p = 100;
       refs.loadbarFill.style.width = p + '%';
       const idx = Math.min(TIPS.length - 1, Math.floor(p / (100 / TIPS.length)));
-      if (idx !== ti) { ti = idx; refs.loadingTip.textContent = TIPS[idx]; }
-      if (p >= 100) { clearInterval(timer); setTimeout(revealHub, 500); }
+      if (idx !== ti) { ti = idx; refs.loadingTip.textContent = T(TIPS[idx]); }
+      if (p >= 100) {
+        clearInterval(timer);
+        setTimeout(() => {
+          if (!Game.get().lang) showLangChooser(revealHub); // первый запуск — выбор языка
+          else revealHub();
+        }, 500);
+      }
     }, 220);
   }
 
@@ -2854,12 +3132,13 @@ const App = (() => {
     refs.hub.classList.remove('hidden');
     Scene.initHub(document.getElementById('sceneCanvas'));
     wireHub();
+    applyStaticLang();
     refreshTop();
     updateAvatar();
     applyFrame();
     renderWidgets();
     refreshKarma();
-    setTimeout(() => showSpeech('Привет! Готов сделать этот день лучше? ✨', 3200), 700);
+    setTimeout(() => showSpeech(T('Привет! Готов сделать этот день лучше? ✨'), 3200), 700);
     // первый показ механики Кармы
     if (!Game.get().flags.karmaIntro) setTimeout(() => Sections.openKarmaIntro(), 1100);
   }
@@ -2867,8 +3146,8 @@ const App = (() => {
   /* --- верхняя панель --- */
   function refreshTop() {
     const s = Game.get();
-    refs.playerName.textContent = s.name;
-    refs.playerLevel.textContent = 'ур. ' + s.level;
+    refs.playerName.textContent = (s.name === 'Герой') ? T('Герой') : s.name;
+    refs.playerLevel.textContent = T('ур. ') + s.level;
     const max = Game.xpMax();
     refs.xpFill.style.width = Math.min(100, (s.xp / max) * 100) + '%';
     refs.xpText.textContent = `${s.xp} / ${max}`;
@@ -2887,7 +3166,7 @@ const App = (() => {
     const need = Game.karmaNext();
     refs.karmaFill.style.width = Math.min(100, (s.karma.progress / need) * 100) + '%';
     refs.karmaText.textContent = `${s.karma.progress} / ${need}`;
-    refs.karmaLvl.textContent = 'ур.' + s.karma.level;
+    refs.karmaLvl.textContent = T('ур.') + s.karma.level;
   }
 
   /* --- виджеты главного экрана --- */
@@ -2915,7 +3194,7 @@ const App = (() => {
       else { value = '—'; label = 'копилка'; }
       action = () => Sections.openGoals();
     } else if (id === 'karma') {
-      glyph = '✨'; value = `${s.karma.progress}/${Game.karmaNext()}`; label = `карма ур.${s.karma.level}`;
+      glyph = '✨'; value = `${s.karma.progress}/${Game.karmaNext()}`; label = T('карма ур.') + s.karma.level;
       action = () => Sections.openKarmaJournal();
     } else return null;
 
@@ -2981,7 +3260,7 @@ const App = (() => {
     document.getElementById('navHome').addEventListener('click', () => {
       TG.haptic('light'); UI.close();
       setNavActive('home');
-      showSpeech(PHRASES[Math.floor(Math.random() * PHRASES.length)], 2400);
+      showSpeech(T(PHRASES[Math.floor(Math.random() * PHRASES.length)]), 2400);
     });
     document.getElementById('navMenu').addEventListener('click', () => { TG.haptic('medium'); setNavActive('menu'); Sections.openMenu(); });
     document.getElementById('navExtra').addEventListener('click', () => { TG.haptic('light'); setNavActive('extra'); Sections.openExtra(); });
@@ -2994,7 +3273,7 @@ const App = (() => {
     // тап по персонажу → реплика + монетка-пасхалка изредка
     const scene = document.getElementById('sceneCanvas');
     scene.addEventListener('click', e => {
-      showSpeech(PHRASES[Math.floor(Math.random() * PHRASES.length)], 2200);
+      showSpeech(T(PHRASES[Math.floor(Math.random() * PHRASES.length)]), 2200);
       TG.haptic('soft'); FX.beep(600, 0.05);
     });
   }
@@ -3003,7 +3282,7 @@ const App = (() => {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('nav-btn--active', b.dataset.nav === id));
   }
 
-  return { init, refreshTop, updateAvatar, applyFrame, renderWidgets, refreshKarma };
+  return { init, refreshTop, updateAvatar, applyFrame, renderWidgets, refreshKarma, applyLang, applyStaticLang };
 })();
 
 // старт
