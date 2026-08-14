@@ -1233,6 +1233,7 @@ const I18N = (() => {
 
     // локация / время
     '🌳 Поляна': '🌳 Meadow', '🏠 Комната': '🏠 Room', 'Место': 'Place', 'Время суток': 'Time of day',
+    '🏖 Пляж': '🏖 Beach', '🌆 Город': '🌆 City', '☕ Кафе': '☕ Cafe', '🍸 Бар': '🍸 Bar',
     '⏱ Авто': '⏱ Auto', '🌅 Рассвет': '🌅 Dawn', '☀️ День': '☀️ Day', '🌇 Закат': '🌇 Sunset', '🌙 Ночь': '🌙 Night',
 
     // финансы
@@ -2251,12 +2252,16 @@ const Scene = (() => {
     const tod = resolveTime(sc.time);
     const P = PALETTES[tod] || PALETTES.day;
     st._tod = tod;
-    const outdoor = sc.env !== 'room';
+    const outdoor = sc.env !== 'room' && sc.env !== 'cafe' && sc.env !== 'bar';
     if (sc.env === 'room') drawRoom(ctx, st, t, P, tod);
     else if (sc.env === 'park') drawPark(ctx, st, t, P, tod);
+    else if (sc.env === 'beach') drawBeach(ctx, st, t, P, tod);
+    else if (sc.env === 'cafe') drawCafe(ctx, st, t, P, tod);
+    else if (sc.env === 'bar') drawBar(ctx, st, t, P, tod);
+    else if (sc.env === 'city') drawCity(ctx, st, t, P, tod);
     else drawMeadow(ctx, st, t, P, tod);
     drawDecor(ctx, st, t, P);
-    if (outdoor) {
+    if (sc.env === 'meadow' || sc.env === 'park') {
       const season = resolveSeason(sc.season);
       drawHolidayProp(ctx, st, t);
       drawSeasonOverlay(ctx, st, t, season);
@@ -2615,6 +2620,237 @@ const Scene = (() => {
       canopy: night ? '#3f7a48' : '#5aa055', canopyD: night ? '#2f5e38' : '#4d8a46', canopyL: night ? '#569a5e' : '#6cb85c',
       trunk: '#7a5334', snow: false,
     };
+  }
+
+  function ensureCity(st, W) {
+    if (st._city) return;
+    st._city = []; let x = -6, i = 0;
+    const pal = [['#6b7a99', '#232a3e'], ['#7a6b88', '#2a2438'], ['#8a7f6b', '#332e26'], ['#6b8a86', '#233330'], ['#99788a', '#38263a']];
+    while (x < W + 6) { const w = 14 + ((i * 7) % 12); const hgt = 26 + ((i * 13) % 42); const p = pal[i % pal.length]; st._city.push({ x, w, h: hgt, dc: p[0], nc: p[1] }); x += w - 2; i++; }
+  }
+  function drawBeach(ctx, st, t, P, tod) {
+    const rc = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    const W = st.W, gy = st.groundY, H = st.H, night = P.night;
+    const bh = (gy - 16) / P.sky.length;
+    P.sky.forEach((c, i) => rc(0, Math.floor(i * bh), W, Math.ceil(bh) + 1, c));
+    drawCelestial(ctx, st, t, P, W - 34, 12);
+    if (night) { ensureStars(st); st._stars.forEach(s => { s.ph += 0.04; const a = 0.4 + Math.abs(Math.sin(s.ph)) * 0.6; rc(s.x, s.y, 1, 1, `rgba(255,255,255,${a})`); }); }
+    else st.clouds.forEach(cl => { cl.x += cl.sp; if (cl.x > W + 20) cl.x = -20; drawCloud(ctx, Math.round(cl.x), Math.round(cl.y), cl.s); });
+    // море
+    const seaTop = gy - 16;
+    rc(0, seaTop, W, 18, night ? '#24406a' : '#4aa6c8'); rc(0, seaTop, W, 4, night ? '#2c4c78' : '#69bcd8');
+    for (let x = 0; x < W; x += 10) { const wy = seaTop + 5 + Math.round(Math.sin((x + t) / 6)); rc(x, wy, 4, 1, night ? '#3a5c86' : '#bfe6f2'); }
+    rc(0, gy - 2, W, 3, night ? '#5a7a92' : '#e2f4f8'); // прибой
+    // песок
+    rc(0, gy, W, H - gy, night ? '#8a7a5a' : '#f0dca2'); rc(0, gy, W, 3, night ? '#9a8a68' : '#f8e8b8');
+    for (let i = 0; i < 9; i++) { const sx = (i * 23 + 8) % W; rc(sx, gy + 6 + ((i * 9) % Math.max(1, H - gy - 6)), 3, 1, night ? '#7a6a4c' : '#e2cd94'); }
+    // зонт
+    const ux = Math.round(W * 0.16);
+    rc(ux - 1, gy - 20, 2, 20, '#c9b89a');
+    rc(ux - 10, gy - 24, 20, 4, '#e0402f'); rc(ux - 10, gy - 22, 20, 2, '#ffffff'); rc(ux - 7, gy - 26, 14, 2, '#e0402f'); rc(ux - 3, gy - 28, 6, 2, '#e0402f');
+    // мячик и ракушка
+    const bxx = Math.round(W * 0.72); rc(bxx, gy + 8, 5, 5, '#ffffff'); rc(bxx, gy + 8, 5, 2, '#e0607a'); rc(bxx + 2, gy + 8, 1, 5, '#5b8fd0');
+    rc(Math.round(W * 0.3), gy + 12, 4, 3, '#f2a65a'); rc(Math.round(W * 0.3) + 1, gy + 11, 2, 1, '#f7c48a');
+    // --- анимации ---
+    // блики на воде
+    for (let i = 0; i < 4; i++) { const gx = (i * 47 + t * 0.6) % W; const gyy = seaTop + 8 + ((i * 5) % 8); if ((t + i * 13) % 40 < 20) rc(gx, gyy, 1, 1, night ? 'rgba(180,210,240,0.7)' : 'rgba(255,255,255,0.8)'); }
+    // парусник на горизонте
+    const boatX = (t * 0.15) % (W + 30) - 15;
+    rc(boatX, seaTop + 1, 8, 2, '#6b4a2f'); rc(boatX + 3, seaTop - 5, 1, 6, '#8a6240'); rc(boatX + 4, seaTop - 5, 4, 5, night ? '#c0c4cc' : '#f4f0e6');
+    // чайки (машут крыльями)
+    const gc = night ? '#cfd6e0' : '#f4f4f6', flap = Math.sin(t / 5) > 0;
+    [[0.35, 20, 0.30], [0.62, 32, 0.20]].forEach(([bx, by, sp]) => {
+      const x = ((bx * W + t * (0.3 + sp)) % (W + 20)) - 10;
+      if (flap) { rc(x - 2, by, 2, 1, gc); rc(x + 1, by, 2, 1, gc); rc(x, by + 1, 1, 1, gc); }
+      else { rc(x - 2, by + 1, 2, 1, gc); rc(x + 1, by + 1, 2, 1, gc); rc(x, by, 1, 1, gc); }
+    });
+    // крабик бегает по песку
+    const crabX = ((t * 0.4) % (W + 20)) - 10, crabY = gy + 15, cl = Math.sin(t / 4) > 0 ? 0 : 1;
+    rc(crabX, crabY, 5, 3, '#e0503a'); rc(crabX, crabY, 5, 1, '#f06a52');
+    rc(crabX - 1, crabY - 1, 1, 1, '#c03a28'); rc(crabX + 5, crabY - 1, 1, 1, '#c03a28'); // клешни
+    rc(crabX + 1, crabY - 1, 1, 1, '#2a2018'); rc(crabX + 3, crabY - 1, 1, 1, '#2a2018'); // глазки
+    rc(crabX + cl, crabY + 3, 1, 1, '#c03a28'); rc(crabX + 4 - cl, crabY + 3, 1, 1, '#c03a28'); // ножки
+    // волейбол: сетка, два игрока, мяч по дуге
+    if (!night) {
+      const netX = Math.round(W * 0.78), sandY = gy;
+      const p1x = Math.round(W * 0.68), p2x = Math.round(W * 0.9);
+      // сетка
+      rc(netX, sandY - 12, 1, 12, '#e8e8e0');
+      for (let yy = sandY - 12; yy < sandY - 2; yy += 2) rc(netX - 5, yy, 11, 1, 'rgba(240,240,230,0.5)');
+      rc(netX - 6, sandY - 13, 13, 1, '#cfcfc4');
+      // мяч по параболе между игроками
+      const per = 120, ph = (t % per) / per, dir = Math.floor(t / per) % 2 === 0;
+      const ax = dir ? p1x + (p2x - p1x) * ph : p2x - (p2x - p1x) * ph;
+      const ay = sandY - 10 - Math.sin(ph * Math.PI) * 16;
+      rc(Math.round(ax), Math.round(ay), 3, 3, '#ffffff'); rc(Math.round(ax), Math.round(ay), 3, 1, '#e0e0e6');
+      // игроки (машут руками в такт)
+      const up1 = ph < 0.3, up2 = ph > 0.7;
+      [[p1x, up1], [p2x, up2]].forEach(([x, up]) => {
+        rc(x, sandY - 12, 3, 3, '#e7c3a0'); rc(x, sandY - 9, 3, 5, '#d96a5a'); // голова+тело
+        rc(x, sandY - 4, 1, 4, '#4a5a7a'); rc(x + 2, sandY - 4, 1, 4, '#4a5a7a'); // ноги
+        if (up) { rc(x - 1, sandY - 13, 1, 3, '#e7c3a0'); rc(x + 3, sandY - 13, 1, 3, '#e7c3a0'); } // руки вверх
+        else { rc(x - 1, sandY - 9, 1, 3, '#e7c3a0'); rc(x + 3, sandY - 9, 1, 3, '#e7c3a0'); }
+      });
+    }
+  }
+  function drawCity(ctx, st, t, P, tod) {
+    const rc = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    const W = st.W, gy = st.groundY, H = st.H, night = P.night;
+    const bh = gy / P.sky.length; P.sky.forEach((c, i) => rc(0, Math.floor(i * bh), W, Math.ceil(bh) + 1, c));
+    drawCelestial(ctx, st, t, P, W - 30, 10);
+    if (night) { ensureStars(st); st._stars.forEach(s => { s.ph += 0.04; const a = 0.4 + Math.abs(Math.sin(s.ph)) * 0.6; rc(s.x, s.y, 1, 1, `rgba(255,255,255,${a})`); }); }
+    ensureCity(st, W);
+    st._city.forEach(b => {
+      const col = night ? b.nc : b.dc; rc(b.x, gy - b.h, b.w, b.h, col); rc(b.x, gy - b.h, b.w, 2, shade(col, 12));
+      for (let wy = gy - b.h + 4; wy < gy - 4; wy += 6) for (let wx = b.x + 2; wx < b.x + b.w - 2; wx += 5) {
+        const lit = night && (((wx * 7 + wy * 3 + b.x) + Math.floor(t / 45)) % 7 < 2);
+        rc(wx, wy, 2, 3, lit ? '#ffd86a' : (night ? '#2a2f45' : '#9fb0c4'));
+      }
+    });
+    // дорога
+    rc(0, gy, W, H - gy, night ? '#3a3a44' : '#8a8f98'); rc(0, gy, W, 3, night ? '#4a4a55' : '#a4a9b2');
+    rc(0, gy + Math.round((H - gy) * 0.5), W, 2, night ? '#5a5a66' : '#c9ccd2');
+    for (let x = 6; x < W; x += 20) rc(x, gy + Math.round((H - gy) * 0.5), 8, 1, night ? '#8a8a55' : '#e6e6c0'); // разметка
+    // фонарь
+    const lx = Math.round(W * 0.2); rc(lx, gy - 30, 2, 30, night ? '#4a4a55' : '#5a5a63'); rc(lx - 3, gy - 34, 8, 5, '#f6c453');
+    if (night) { ctx.fillStyle = 'rgba(255,210,110,0.22)'; ctx.fillRect(lx - 10, gy - 40, 22, 26); }
+    // --- анимации ---
+    // машина едет за персонажем
+    const carX = ((t * 1.2) % (W + 44)) - 44;
+    const carCol = ['#d96a5a', '#5b8fd0', '#e0b45a', '#6cb85c'][Math.floor(t / 360) % 4];
+    rc(carX, gy - 5, 16, 5, carCol); rc(carX + 3, gy - 8, 9, 3, shade(carCol, -12));
+    rc(carX + 4, gy - 7, 6, 2, night ? '#3a3f52' : '#bfe0ee');
+    rc(carX + 2, gy - 1, 3, 2, '#22202a'); rc(carX + 11, gy - 1, 3, 2, '#22202a');
+    if (night) { rc(carX + 16, gy - 4, 2, 2, '#ffe08a'); ctx.fillStyle = 'rgba(255,224,138,0.18)'; ctx.fillRect(carX + 18, gy - 5, 8, 4); }
+    else rc(carX + 15, gy - 4, 1, 2, '#ffd86a');
+    // самолёт (ночью, мигающий огонёк)
+    if (night) { const px = ((t * 0.4) % (W + 20)) - 10; if (Math.floor(t / 6) % 2 === 0) rc(px, 14, 1, 1, '#ff6a6a'); rc(px - 2, 14, 1, 1, 'rgba(255,255,255,0.5)'); }
+    // прохожие (силуэты идут по тротуару)
+    const peeps = [[0.2, 0.35], [0.75, -0.28], [0.5, 0.5]];
+    const pcol = night ? '#1e2130' : '#3a3f52';
+    peeps.forEach(([off, sp], k) => {
+      let x = ((off * W + t * sp) % (W + 24)); if (x < 0) x += (W + 24); x -= 12;
+      const y = gy - 8, legPh = Math.sin(t / 5 + k * 2) > 0;
+      rc(x, y - 3, 3, 3, pcol); rc(x, y, 3, 6, pcol);
+      if (legPh) { rc(x, y + 6, 1, 2, pcol); rc(x + 2, y + 6, 1, 2, pcol); }
+      else { rc(x + 1, y + 6, 1, 2, pcol); }
+    });
+    // мигающая вывеска магазина на здании
+    const shopB = st._city[Math.min(2, st._city.length - 1)];
+    if (shopB) {
+      const sX = shopB.x + 2, sY = gy - Math.round(shopB.h * 0.55);
+      const on = (Math.floor(t / 24) % 5 !== 0); // иногда мигает
+      const sc = on ? (night ? '#ff5aa0' : '#e0402f') : (night ? '#5a2a44' : '#a05a50');
+      rc(sX, sY, Math.min(shopB.w - 4, 10), 4, sc);
+      rc(sX + 1, sY + 1, 2, 2, on ? '#fff' : '#caa'); rc(sX + 4, sY + 1, 2, 2, on ? '#ffe08a' : '#caa'); rc(sX + 7, sY + 1, 2, 2, on ? '#5ad0ff' : '#caa');
+      if (on && night) { ctx.fillStyle = 'rgba(255,90,160,0.15)'; ctx.fillRect(sX - 3, sY - 2, 16, 8); }
+    }
+  }
+  function drawCafe(ctx, st, t, P, tod) {
+    const rc = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    const W = st.W, gy = st.groundY, H = st.H, night = P.night;
+    rc(0, 0, W, gy, night ? '#4a3f3a' : '#e8d3b0');
+    rc(0, gy - 4, W, 4, night ? '#5a4a40' : '#c9a074');
+    rc(0, gy, W, H - gy, night ? '#4a3628' : '#b5794a'); rc(0, gy, W, 3, night ? '#5a4433' : '#c98a5a');
+    for (let x = 0; x < W; x += 16) rc(x, gy, 1, H - gy, night ? '#3a2a1e' : '#9a6a40');
+    // окно
+    const wx = Math.round(W * 0.1); rc(wx, 18, 26, 22, '#6b4a2f'); rc(wx + 2, 20, 22, 18, night ? '#26324a' : '#bfe0ee');
+    if (night) rc(wx + 16, 22, 2, 2, '#ffd86a'); else rc(wx + 4, 30, 6, 8, '#8fc27a');
+    // меловая доска
+    const mx = Math.round(W * 0.6); rc(mx, 16, 30, 20, '#3a3a34'); rc(mx + 2, 18, 26, 16, '#2f2f2a');
+    rc(mx + 5, 22, 16, 1, '#e8e8e0'); rc(mx + 5, 26, 20, 1, '#cfe0d0'); rc(mx + 5, 30, 12, 1, '#e0d0a0');
+    // барная стойка + кофемашина
+    const bx = Math.round(W * 0.7); rc(bx, gy - 16, W - bx, 16, '#7a5334'); rc(bx, gy - 16, W - bx, 3, '#8f6440'); rc(bx, gy - 4, W - bx, 4, '#5a3f26');
+    rc(bx + 4, gy - 26, 12, 10, '#b8bcc4'); rc(bx + 4, gy - 26, 12, 2, '#d0d4dc'); rc(bx + 6, gy - 18, 3, 2, '#3a3a44'); rc(bx + 11, gy - 18, 3, 2, '#3a3a44');
+    rc(bx + 18, gy - 19, 4, 3, '#f0ece2');
+    // подвесная лампа
+    const px2 = Math.round(W * 0.42); rc(px2, 0, 1, 14, '#5a4a40'); rc(px2 - 4, 14, 10, 5, night ? '#ffd27a' : '#f0d090');
+    if (night) { ctx.fillStyle = 'rgba(255,210,120,0.18)'; ctx.fillRect(px2 - 14, 14, 28, gy - 14); }
+    // растение
+    const gx = Math.round(W * 0.28); rc(gx, gy - 12, 6, 12, '#8a5a3a'); rc(gx - 1, gy - 20, 8, 9, '#5aa04a'); rc(gx - 1, gy - 20, 8, 3, '#6cb85c');
+    // картина на стене
+    const fx2 = Math.round(W * 0.32); rc(fx2, 20, 16, 13, '#8a5f3c'); rc(fx2 + 2, 22, 12, 9, '#cfe0d0'); rc(fx2 + 4, 27, 8, 4, '#8fc27a'); rc(fx2 + 9, 24, 3, 3, '#f6c453');
+    // тортик под стеклянным колпаком на стойке
+    const cx2 = bx + 26; rc(cx2, gy - 21, 8, 5, '#f0c86a'); rc(cx2 + 1, gy - 23, 6, 2, '#e79ab0'); rc(cx2 - 1, gy - 22, 10, 1, '#e8e8ee'); rc(cx2 - 1, gy - 22, 1, 6, 'rgba(220,235,255,0.5)');
+    // подставка для чашек
+    rc(bx + 18, gy - 19, 4, 3, '#f0ece2'); rc(bx + 18, gy - 19, 4, 1, '#ffffff');
+    ctx.fillStyle = night ? 'rgba(255,180,90,0.10)' : 'rgba(255,220,150,0.05)'; ctx.fillRect(0, 0, W, gy);
+    // --- пар (анимация) ---
+    const steam = (sx2, sy2) => { for (let i = 0; i < 3; i++) { const yy = sy2 - ((t / 2 + i * 6) % 13); const xx = sx2 + Math.round(Math.sin(t / 8 + i * 2) * 2); const a = Math.max(0, 0.45 - ((sy2 - yy) / 13) * 0.45); rc(xx, yy, 1, 2, 'rgba(255,255,255,' + a.toFixed(2) + ')'); } };
+    steam(bx + 9, gy - 27); steam(bx + 20, gy - 20);
+    // официант за стойкой (протирает, покачивается)
+    const wx2 = bx + 8, wy2 = gy - 16, sw = Math.sin(t / 20);
+    rc(wx2, wy2 - 12, 6, 6, '#e7c3a0'); rc(wx2, wy2 - 16, 6, 4, '#4a3a2f');          // голова + волосы
+    rc(wx2 + 1, wy2 - 10, 1, 1, '#2a2018'); rc(wx2 + 4, wy2 - 10, 1, 1, '#2a2018');   // глаза
+    rc(wx2, wy2 - 6, 6, 6, '#f0f0ec'); rc(wx2 + 1, wy2 - 4, 4, 4, '#5b8fd0');          // рубашка + фартук/жилет
+    rc(wx2 + 6, wy2 - 5 + Math.round(sw), 2, 4, '#e7c3a0');                            // рука протирает
+    rc(wx2 + 7, wy2 - 6 + Math.round(sw), 3, 2, '#f4f4ee');                            // тряпка
+  }
+  function drawBar(ctx, st, t, P, tod) {
+    const rc = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    const W = st.W, gy = st.groundY, H = st.H;
+    rc(0, 0, W, gy, '#2a2432'); rc(0, gy - 4, W, 4, '#3a3040');
+    rc(0, gy, W, H - gy, '#241e28'); rc(0, gy, W, 3, '#332a38');
+    // полки с бутылками (сзади сверху)
+    const sy = 14; rc(Math.round(W * 0.1), sy, Math.round(W * 0.8), 3, '#4a3f36'); rc(Math.round(W * 0.1), sy + 13, Math.round(W * 0.8), 3, '#4a3f36');
+    const bc = ['#6cb85c', '#d96a5a', '#e0b45a', '#5b8fd0', '#a87fd0', '#4fae9a'];
+    for (let i = 0; i < 12; i++) { const x = Math.round(W * 0.12) + i * Math.round(W * 0.66 / 12); rc(x, sy - 7, 3, 7, bc[i % bc.length]); rc(x, sy + 7, 3, 6, bc[(i + 3) % bc.length]); rc(x, sy - 7, 3, 1, '#ffffff'); }
+    const glint = Math.round(W * 0.12) + ((t * 0.8) % Math.round(W * 0.66)); rc(glint, sy - 7, 1, 7, 'rgba(255,255,255,0.4)'); rc(glint, sy + 7, 1, 6, 'rgba(255,255,255,0.3)');
+    // зеркало на задней стене (заполняет стену, отражает бутылки)
+    const backLine = gy - Math.round(st.u * 9);
+    const mrX = Math.round(W * 0.3), mrW = Math.round(W * 0.4), mrY = sy + 24, mrH = Math.max(12, backLine - 12 - mrY);
+    rc(mrX - 2, mrY - 2, mrW + 4, mrH + 4, '#4a3f36'); rc(mrX - 2, mrY - 2, mrW + 4, 2, '#5f5347'); // рама
+    rc(mrX, mrY, mrW, mrH, '#332e40'); rc(mrX, mrY, mrW, 2, '#3f3a4e');                              // стекло
+    for (let i = 0; i < 5; i++) { const x = mrX + 4 + i * Math.round((mrW - 8) / 5); rc(x, mrY + mrH - 9, 2, 7, 'rgba(150,130,170,0.32)'); rc(x, mrY + mrH - 9, 2, 1, 'rgba(220,210,235,0.3)'); }
+    rc(mrX + 2, mrY + 2, 2, mrH - 4, 'rgba(255,255,255,0.05)');                                      // блик
+    // неоновая вывеска (пульсирует, иногда мигает)
+    const nx = Math.round(W * 0.32), nw = Math.round(W * 0.36);
+    const flick = (Math.floor(t / 33) % 17 === 0);
+    const neonA = flick ? 0.05 : (0.16 + 0.06 * Math.abs(Math.sin(t / 10)));
+    const neonC = flick ? '#7a3a58' : '#ff5aa0';
+    rc(nx, 6, nw, 2, neonC); rc(nx, 6, 2, 6, '#5ad0ff'); rc(nx + nw - 2, 6, 2, 6, '#5ad0ff');
+    ctx.fillStyle = 'rgba(255,90,160,' + neonA.toFixed(2) + ')'; ctx.fillRect(nx - 6, 2, nw + 12, 14);
+    // подвесной свет (слегка качается)
+    const lx = Math.round(W * 0.26) + Math.round(Math.sin(t / 40) * 2); rc(lx, 0, 1, 8, '#3a3040'); rc(lx - 4, 8, 10, 4, '#e0b45a');
+    ctx.fillStyle = 'rgba(224,180,90,0.12)'; ctx.fillRect(lx - 16, 8, 32, gy - 8);
+    // потолочный вентилятор (вращается)
+    const fcx = Math.round(W * 0.8), fcy = 10; rc(fcx, 0, 1, fcy - 1, '#3a3040');
+    ctx.save(); ctx.translate(fcx + 0.5, fcy); ctx.rotate((t * 0.35) % (Math.PI * 2)); ctx.fillStyle = '#4a4050';
+    for (let k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.fillRect(0, -1, 11, 2); }
+    ctx.restore(); rc(fcx - 1, fcy - 1, 3, 3, '#5a4a40');
+    // --- БАРМЕН за стойкой (трясёт шейкер) ---
+    const backY = gy - Math.round(st.u * 9);           // линия барной стойки
+    const bmx = Math.round(W * 0.72), shake = Math.round(Math.sin(t / 3) * 2);
+    rc(bmx - 3, backY - 15, 6, 9, '#3a3442'); rc(bmx - 3, backY - 15, 6, 1, '#4a4452'); // жилет
+    rc(bmx - 1, backY - 15, 2, 9, '#eceae4');                                            // рубашка
+    rc(bmx - 3, backY - 21, 6, 6, '#e7c3a0'); rc(bmx - 3, backY - 23, 6, 3, '#2f2a26');  // голова + волосы
+    rc(bmx - 2, backY - 19, 1, 1, '#2a2018'); rc(bmx + 1, backY - 19, 1, 1, '#2a2018');  // глаза
+    rc(bmx - 1, backY - 15, 2, 1, '#d96a5a');                                            // бабочка
+    rc(bmx + 3, backY - 18 + shake, 2, 4, '#e7c3a0'); rc(bmx + 4, backY - 22 + shake, 3, 5, '#b8bcc4'); rc(bmx + 4, backY - 22 + shake, 3, 1, '#d0d4dc'); // рука+шейкер
+    rc(bmx - 5, backY - 15 - shake, 2, 4, '#e7c3a0');                                    // вторая рука
+    // столешница задней стойки (перед нижней частью бармена)
+    rc(0, backY, W, 3, '#6e4f36'); rc(0, backY, W, 1, '#8a6440');
+    rc(0, backY + 3, W, Math.max(1, gy - backY - 3), '#2e2018');
+    rc(Math.round(W * 0.2), backY - 5, 2, 5, '#6cb85c'); rc(Math.round(W * 0.76), backY - 5, 2, 5, '#d96a5a'); // бутылки на стойке
+  }
+  // передняя часть барной стойки — рисуется ПОВЕРХ персонажа (он «сидит» за стойкой)
+  function drawBarFront(ctx, st, cx, t) {
+    const rc = (x, y, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+    const W = st.W, gy = st.groundY, H = st.H;
+    const frontY = gy - Math.round(st.u * 5.5);
+    // столешница + фронт (закрывает нижнюю часть персонажа => он у стойки)
+    rc(0, frontY, W, 3, '#7a5334'); rc(0, frontY, W, 1, '#9a6a44');
+    rc(0, frontY + 3, W, H - (frontY + 3), '#4a3220'); rc(0, frontY + 3, W, 1, '#5a3f28');
+    for (let x = 8; x < W; x += 18) rc(x, frontY + 5, 1, H - (frontY + 5), '#3a281a'); // текстура дерева
+    // руки персонажа на стойке
+    rc(cx - 10, frontY - 2, 3, 2, '#e7c3a0'); rc(cx + 7, frontY - 2, 3, 2, '#e7c3a0');
+    // коктейль перед персонажем (пузырьки + вишенка)
+    const dx = cx + 5;
+    rc(dx, frontY - 7, 5, 6, 'rgba(120,200,160,0.6)'); rc(dx + 1, frontY - 1, 3, 2, 'rgba(120,200,160,0.75)'); rc(dx + 2, frontY - 10, 1, 3, '#c9b89a');
+    for (let i = 0; i < 3; i++) { const yy = (frontY - 2) - ((t / 3 + i * 4) % 5); rc(dx + 1 + ((i * 2) % 3), yy, 1, 1, 'rgba(255,255,255,0.8)'); }
+    rc(dx + 3, frontY - 11, 2, 2, '#e0607a'); // вишенка
+    // салфетка
+    rc(cx - 12, frontY - 1, 4, 1, '#e8e4da');
   }
 
   function drawMeadow(ctx, st, t, P, tod) {
@@ -3684,15 +3920,24 @@ const Scene = (() => {
       // а лишняя ширина просто заполняется поляной (а не растягивает героя).
       const HCELL = 4;            // арт-пикселей на клетку героя
       const HERO_CELLS = 20;      // высота героя в клетках
-      const HERO_FRAC = 0.5;      // доля высоты экрана под героя
-      let scale = (cssH * HERO_FRAC) / (HERO_CELLS * HCELL);
+      const aspect = cssW / cssH;
+      // На узких экранах (портретный телефон) уменьшаем героя и поднимаем горизонт,
+      // чтобы было видно больше локации и меньше пустого неба.
+      // Широкие экраны (iPad/ПК, aspect >= 0.75) остаются как раньше.
+      let heroFrac = 0.5, groundFrac = 0.86;
+      if (aspect < 0.75) {
+        const k = Math.min(1, (0.75 - aspect) / 0.35);   // 0..1 по «узости»
+        heroFrac = 0.5 - 0.16 * k;                        // до ~0.34
+        groundFrac = 0.86 - 0.16 * k;                     // горизонт до ~0.70
+      }
+      let scale = (cssH * heroFrac) / (HERO_CELLS * HCELL);
       scale = Math.max(3, scale);
       st.scale = scale;
       st.W = Math.max(72, Math.round(cssW / scale));
       st.H = Math.round(cssH / scale);
       canvas.width = st.W; canvas.height = st.H;
       ctx.imageSmoothingEnabled = false;
-      st.groundY = Math.round(st.H * 0.86);
+      st.groundY = Math.round(st.H * groundFrac);
       st.u = HCELL;
       // облака
       st.clouds = [
@@ -3769,6 +4014,7 @@ const Scene = (() => {
     const ps = Game.get().petStats || { level: 1 };
     drawPet(ctx, petX, feetY, petU, look.pet, t, ps.level, Game.petMood ? Game.petMood() : 'happy');
     drawHero(ctx, cx, feetY, st.u, look, { breath, blink, lookDir, arm, wavePhase, tick: t });
+    if ((Game.get().scene || {}).env === 'bar') drawBarFront(ctx, st, cx, t);
 
     hub.raf = requestAnimationFrame(loopHub);
   }
@@ -5353,7 +5599,7 @@ const Sections = (() => {
     Tutorial.trigger('scenery');
     wrap.append(h('p', { class: 'section-hint', text: 'Выбери, где находится персонаж и какое время суток. «Авто» подстраивается под твоё реальное время — утро, день, закат, ночь.' }));
 
-    const envs = [['meadow', '🌳 Поляна'], ['park', '🌲 Парк'], ['room', '🏠 Комната']];
+    const envs = [['meadow', '🌳 Поляна'], ['park', '🌲 Парк'], ['beach', '🏖 Пляж'], ['city', '🌆 Город'], ['cafe', '☕ Кафе'], ['bar', '🍸 Бар'], ['room', '🏠 Комната']];
     const times = [['auto', '⏱ Авто'], ['dawn', '🌅 Рассвет'], ['day', '☀️ День'], ['sunset', '🌇 Закат'], ['night', '🌙 Ночь']];
     const seasons = [['auto', '⏱ Авто'], ['spring', '🌸 Весна'], ['summer', '☀️ Лето'], ['autumn', '🍂 Осень'], ['winter', '❄️ Зима']];
     const roomThemes = [['peach', '🍑 Персик'], ['mint', '🌿 Мята'], ['lavender', '💜 Лаванда'], ['forest', '🌲 Лес'], ['rose', '🌹 Роза']];
@@ -5848,7 +6094,7 @@ const App = (() => {
 
   /* --- тихий эмбиент (WebAudio, без файлов) --- */
   const Ambient = (() => {
-    let actx = null, master = null, drone = [], melTimer = null, running = false, step = 0;
+    let actx = null, master = null, drone = [], melTimer = null, running = false, pi = 0, phrase = null, curEnv = null, ambNodes = [], clinkTimer = null, noiseBuf = null;
     function ensure() {
       if (actx) return;
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -5856,41 +6102,104 @@ const App = (() => {
       actx = new AC(); master = actx.createGain(); master.gain.value = 0; master.connect(actx.destination);
     }
     function start() {
-      ensure(); if (!actx || running) return; running = true; step = 0;
+      ensure(); if (!actx || running) return; running = true; pi = 0; phrase = PHRASES[0];
       if (actx.state === 'suspended') actx.resume();
       // мягкая подложка (пэд)
-      const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 480; lp.connect(master);
-      [110, 110.5, 165].forEach(f => { const o = actx.createOscillator(); o.type = 'sine'; o.frequency.value = f; const g = actx.createGain(); g.gain.value = 0.08; o.connect(g); g.connect(lp); o.start(); drone.push(o); });
+      const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.connect(master);
+      [110, 110.5, 165].forEach(f => { const o = actx.createOscillator(); o.type = 'sine'; o.frequency.value = f; const g = actx.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(lp); o.start(); drone.push(o); });
       master.gain.cancelScheduledValues(actx.currentTime);
       master.gain.setValueAtTime(0, actx.currentTime);
-      master.gain.linearRampToValueAtTime(0.10, actx.currentTime + 2);
+      master.gain.linearRampToValueAtTime(0.55, actx.currentTime + 1.5);
       scheduleMelody();
+      curEnv = null; setAmbience(sceneEnv());
     }
-    // спокойная зацикленная мелодия (пентатоника до-мажор), -1 = пауза
-    const SCALE = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];
-    const PHRASE = [0, 2, 4, 3, 4, 5, -1, 4, 2, 3, 1, 0, -1, 2, -1, -1];
+    function sceneEnv() { try { const sc = Game.get().scene; return (sc && sc.env) || 'meadow'; } catch (e) { return 'meadow'; } }
+    function makeNoise() { if (noiseBuf) return noiseBuf; const len = actx.sampleRate * 2; const b = actx.createBuffer(1, len, actx.sampleRate); const d = b.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; noiseBuf = b; return b; }
+    function noiseSrc() { const s = actx.createBufferSource(); s.buffer = makeNoise(); s.loop = true; return s; }
+    function clink(freq) { if (!actx) return; const o = actx.createOscillator(); o.type = 'triangle'; o.frequency.value = freq + Math.random() * 400; const g = actx.createGain(); g.gain.value = 0; o.connect(g); g.connect(master); const now = actx.currentTime; g.gain.linearRampToValueAtTime(0.05, now + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18); o.start(now); o.stop(now + 0.2); }
+    function scheduleClink(freq, minMs, maxMs) { clinkTimer = setTimeout(() => { if (!running) return; clink(freq); scheduleClink(freq, minMs, maxMs); }, minMs + Math.random() * (maxMs - minMs)); }
+    function stopAmbience() { if (clinkTimer) { clearTimeout(clinkTimer); clinkTimer = null; } ambNodes.forEach(n => { try { if (n.stop) n.stop(); } catch (e) {} try { if (n.disconnect) n.disconnect(); } catch (e) {} }); ambNodes = []; curEnv = null; }
+    // фоновые звуки среды под конкретную локацию
+    function setAmbience(env) {
+      if (!actx || env === curEnv) return;
+      stopAmbience(); curEnv = env;
+      const add = n => ambNodes.push(n);
+      const band = (type, freq, q, gain) => { const s = noiseSrc(); const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q != null) f.Q.value = q; const g = actx.createGain(); g.gain.value = gain; s.connect(f); f.connect(g); g.connect(master); s.start(); add(s); return g; };
+      if (env === 'beach') {
+        const g = band('bandpass', 550, 0.6, 0.08); // прибой
+        const lfo = actx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.12; const lg = actx.createGain(); lg.gain.value = 0.05; lfo.connect(lg); lg.connect(g.gain); lfo.start(); add(lfo);
+      } else if (env === 'city') {
+        band('lowpass', 200, null, 0.10);   // низкий гул
+        band('bandpass', 420, 0.5, 0.03);   // средние частоты трафика
+      } else if (env === 'cafe') {
+        band('lowpass', 320, null, 0.045);  // тихий говор
+        scheduleClink(2200, 3000, 7000);    // звон чашек
+      } else if (env === 'bar') {
+        band('lowpass', 240, null, 0.06);   // низкий шум
+        scheduleClink(1800, 4000, 9000);    // звон стаканов
+      } else if (env === 'meadow' || env === 'park') {
+        const g = band('lowpass', 420, null, 0.03); // лёгкий ветер
+        const lfo = actx.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = 0.08; const lg = actx.createGain(); lg.gain.value = 0.02; lfo.connect(lg); lg.connect(g.gain); lfo.start(); add(lfo);
+      }
+      // комната — только пэд и мелодия
+    }
+    // спокойная мелодия (пентатоника), несколько фраз для разнообразия, адаптация под время суток
+    const DAY_SCALE = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50];   // мажор выше/бодрее
+    const NIGHT_SCALE = [392.00, 440.00, 523.25, 587.33, 659.25, 783.99];  // мажор ниже/спокойнее
+    const MINOR_DAY = [440.00, 523.25, 587.33, 659.25, 783.99, 880.00];    // минор (лаунж/бар)
+    const MINOR_NIGHT = [329.63, 392.00, 440.00, 493.88, 587.33, 659.25];  // минор ниже
+    const PHRASES = [
+      [0, 2, 4, 3, 4, 5, -1, 4, 2, 3, 1, 0, -1, 2, -1, -1],
+      [4, 5, 4, 2, 0, 2, -1, 3, 4, 2, 1, -1, 0, -1, 2, -1],
+      [0, -1, 2, 4, 5, 4, 3, -1, 2, 3, 1, 0, -1, -1, 2, 4],
+      [5, 4, 2, 3, 4, -1, 2, 0, 1, 2, -1, 4, 3, -1, 0, -1],
+      [2, 4, 5, -1, 4, 3, 2, 0, -1, 1, 3, 4, 5, -1, 2, -1],
+    ];
+    // Настроение = время суток (октава/темп/громкость) + локация (лад/тембр/бас/свинг)
+    function moodParams() {
+      const hr = new Date().getHours();
+      const night = (hr >= 22 || hr < 7), evening = (hr >= 18 && hr < 22);
+      let baseTempo = night ? 700 : (evening ? 560 : 470);  // живее, чем раньше
+      let baseVol = night ? 0.82 : (evening ? 0.94 : 1.0);
+      const env = sceneEnv();
+      let minor = false, wave = 'triangle', tempoMul = 1, volMul = 1, bass = false, swing = false, decay = 1.1;
+      if (env === 'bar') { minor = true; wave = 'sine'; volMul = 0.95; bass = true; swing = true; decay = 1.3; }        // лаунж
+      else if (env === 'cafe') { wave = 'triangle'; tempoMul = 1.05; volMul = 0.85; swing = true; decay = 1.0; }        // джаз-кафе
+      else if (env === 'city') { wave = 'square'; tempoMul = 0.82; volMul = 0.9; bass = true; decay = 0.7; }            // бодрый бит
+      else if (env === 'beach') { wave = 'triangle'; tempoMul = 0.92; volMul = 1.0; decay = 1.2; }                       // расслабленно
+      else if (env === 'park' || env === 'meadow') { wave = 'triangle'; tempoMul = 1.0; volMul = 0.95; decay = 1.2; }
+      const scale = minor ? (night ? MINOR_NIGHT : MINOR_DAY) : (night ? NIGHT_SCALE : DAY_SCALE);
+      const bassRoot = minor ? (night ? 110.00 : 146.83) : (night ? 98.00 : 130.81);
+      return { scale, tempo: Math.round(baseTempo * tempoMul), vol: baseVol * volMul, wave, bass, swing, decay, bassRoot };
+    }
     function scheduleMelody() {
       if (!running) return;
-      const idx = PHRASE[step % PHRASE.length];
-      if (idx >= 0) note(SCALE[idx], idx >= 4 ? 0.045 : 0.055);
-      step++;
-      melTimer = setTimeout(scheduleMelody, 640);
+      setAmbience(sceneEnv());
+      if (pi >= phrase.length) { pi = 0; phrase = PHRASES[Math.floor(Math.random() * PHRASES.length)]; }
+      const m = moodParams();
+      const idx = phrase[pi];
+      if (idx >= 0) note(m.scale[idx], (idx >= 4 ? 0.16 : 0.20) * m.vol, m.wave, m.decay);
+      if (m.bass && pi % 4 === 0) note(m.bassRoot, 0.11 * m.vol, 'sine', m.decay * 1.5); // басовый пульс — живость
+      pi++;
+      const swing = m.swing ? (pi % 2 === 0 ? 55 : -45) : 0; // лёгкий свинг
+      melTimer = setTimeout(scheduleMelody, Math.max(170, m.tempo + swing));
     }
-    function note(freq, vol) {
+    function note(freq, vol, wave, decay) {
+      wave = wave || 'triangle'; decay = decay || 1.1;
       if (!actx) return;
-      const o = actx.createOscillator(); o.type = 'triangle'; o.frequency.value = freq;
+      const o = actx.createOscillator(); o.type = wave; o.frequency.value = freq;
       const o2 = actx.createOscillator(); o2.type = 'sine'; o2.frequency.value = freq * 2;
       const g = actx.createGain(); g.gain.value = 0; o.connect(g); const g2 = actx.createGain(); g2.gain.value = 0; o2.connect(g2);
       g.connect(master); g2.connect(master);
       const now = actx.currentTime;
       g.gain.linearRampToValueAtTime(vol, now + 0.04);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 1.1);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
       g2.gain.linearRampToValueAtTime(vol * 0.35, now + 0.04);
-      g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
-      o.start(now); o.stop(now + 1.15); o2.start(now); o2.stop(now + 0.85);
+      g2.gain.exponentialRampToValueAtTime(0.0001, now + decay * 0.7);
+      o.start(now); o.stop(now + decay + 0.05); o2.start(now); o2.stop(now + decay * 0.75 + 0.05);
     }
     function stop() {
-      running = false; if (melTimer) clearTimeout(melTimer);
+      running = false; if (melTimer) clearTimeout(melTimer); stopAmbience();
       if (actx && master) { master.gain.cancelScheduledValues(actx.currentTime); master.gain.linearRampToValueAtTime(0, actx.currentTime + 0.5); }
       setTimeout(() => { drone.forEach(o => { try { o.stop(); } catch (e) {} }); drone = []; }, 600);
     }
